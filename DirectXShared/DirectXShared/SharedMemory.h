@@ -55,7 +55,8 @@ public:
 	struct MeshData
 	{
 		vector<VertexData> vertexData;
-		size_t vertexCount;
+		int vertexCount;
+		XMFLOAT4X4 transform;
 	};
 	vector<MeshData> meshes;
 	vector<ID3D11Buffer*> meshesBuffer;

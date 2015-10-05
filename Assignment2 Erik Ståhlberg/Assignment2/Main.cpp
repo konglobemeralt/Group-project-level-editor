@@ -230,6 +230,11 @@ void MeshChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& other
 		MIntArray triangleCounts;
 		MIntArray triangleVertices;
 		MPoint point;
+		float2 uvPoint;
+		MFloatArray uList;
+		MFloatArray vList;
+		MVector normal;
+		MVectorArray normalList;
 		mesh.getTriangles(triangleCounts, triangleVertices);
 		for (size_t i = 0; i < mesh.numPolygons(); i++)
 		{
@@ -244,21 +249,46 @@ void MeshChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& other
 				//vertexIDList[id+1] = vertexPoint[1];
 				//vertexIDList[id+2] = vertexPoint[2];
 
+				//Vertex:
 				mesh.getPoint(vertexPoint[0], point);
 				vertexList.append(MVector());
 				vertexList[id].x = point.x;
 				vertexList[id].y = point.y;
 				vertexList[id].z = point.z;
+
+				//Uv:
+				mesh.getUVAtPoint(point, uvPoint);
+				uList.append(uvPoint[0]);
+				vList.append(uvPoint[1]);
+
 				mesh.getPoint(vertexPoint[1], point);
 				vertexList.append(MVector());
 				vertexList[id+1].x = point.x;
 				vertexList[id+1].y = point.y;
 				vertexList[id+1].z = point.z;
+
+				mesh.getUVAtPoint(point, uvPoint);
+				uList.append(uvPoint[0]);
+				vList.append(uvPoint[1]);
+
 				mesh.getPoint(vertexPoint[2], point);
 				vertexList.append(MVector());
 				vertexList[id+2].x = point.x;
 				vertexList[id+2].y = point.y;
 				vertexList[id+2].z = point.z;
+
+				mesh.getUVAtPoint(point, uvPoint);
+				uList.append(uvPoint[0]);
+				vList.append(uvPoint[1]);
+
+				//Normal:
+				mesh.getVertexNormal(vertexIDList[0], true, normal);
+				normalList.append(normal);
+				mesh.getVertexNormal(vertexIDList[1], true, normal);
+				normalList.append(normal);
+				mesh.getVertexNormal(vertexIDList[2], true, normal);
+				normalList.append(normal);
+
 				id += 3;
 			}
 		}
@@ -277,13 +307,59 @@ void MeshChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& other
 				MGlobal::displayInfo(MString("V: ") + vertexIDList[i] + ": " + vertexList[i].x + " " + vertexList[i].y + " " + vertexList[i].z + " "  + i);
 				//MGlobal::displayInfo(MString("V: ") + vtxArray[i] +  ": " + vts[vtxArray[i]].x + " " + vts[vtxArray[i]].y + " " + vts[vtxArray[i]].z);
 				sm.vertexData[i].pos = XMFLOAT3(vertexList[i].x, vertexList[i].y, vertexList[i].z);
+				sm.vertexData[i].uv = XMFLOAT2(uList[i], vList[i]);
+				MGlobal::displayInfo(MString("UV ") + i + ": " + uList[i] + " " + vList[i]);
+				MGlobal::displayInfo(MString("N ") + i + ": " + normalList[i].x + " " + normalList[i].y + " " + normalList[i].z);
 				//MGlobal::displayInfo(MString("V: ") + vtxArray[i] + ": " + sm.vertexData[i].pos.x + " " + sm.vertexData[i].pos.y + " " + sm.vertexData[i].pos.z);
 			}
 		}
 
-		//// UV:s
+		//MIntArray vertexIDList;
+		//MVectorArray vertexList;
+		//int id = 0;
+		////vertexIDList.setLength(mesh.numPolygons());
+		//int vertexPoint[3];
+		//MIntArray triangleId;
+		//MIntArray triangleCounts;
+		//MIntArray triangleVertices;
+		//MPoint point;
+		//mesh.getTriangles(triangleCounts, triangleVertices);
+		//for (size_t i = 0; i < mesh.numPolygons(); i++)
+		//{
+		//	triangleId.append(triangleCounts[i]);
+		//	for (size_t j = 0; j < triangleCounts[i]; j++)
+		//	{
+		//		mesh.getPolygonTriangleVertices(i, j, vertexPoint);
+		//		vertexIDList.append(vertexPoint[0]);
+		//		vertexIDList.append(vertexPoint[1]);
+		//		vertexIDList.append(vertexPoint[2]);
+		//		//vertexIDList[id] = vertexPoint[0];
+		//		//vertexIDList[id+1] = vertexPoint[1];
+		//		//vertexIDList[id+2] = vertexPoint[2];
+
+		//		mesh.getPoint(vertexPoint[0], point);
+		//		vertexList.append(MVector());
+		//		vertexList[id].x = point.x;
+		//		vertexList[id].y = point.y;
+		//		vertexList[id].z = point.z;
+		//		mesh.getPoint(vertexPoint[1], point);
+		//		vertexList.append(MVector());
+		//		vertexList[id + 1].x = point.x;
+		//		vertexList[id + 1].y = point.y;
+		//		vertexList[id + 1].z = point.z;
+		//		mesh.getPoint(vertexPoint[2], point);
+		//		vertexList.append(MVector());
+		//		vertexList[id + 2].x = point.x;
+		//		vertexList[id + 2].y = point.y;
+		//		vertexList[id + 2].z = point.z;
+		//		id += 3;
+		//	}
+		//}
+
+		// UV:s
 		//MFloatArray u, v;
 		//mesh.getUVs(u, v);
+		////mesh.getPolygonUV;
 		//MGlobal::displayInfo(MString("Number of uv: ") + u.length());
 		//for (size_t i = 0; i < u.length(); i++)
 		//{
@@ -300,9 +376,11 @@ void MeshChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& other
 		//}
 
 		// Send data to shared memory
+		int size = vertexList.length();
+		memcpy((int*)sm.buffer, &size, sizeof(int));
 		for (size_t i = 0; i < vertexList.length(); i++)
 		{
-			memcpy((XMFLOAT3*)sm.buffer + i, &sm.vertexData[i].pos, sizeof(XMFLOAT3));
+			memcpy((XMFLOAT3*)sm.buffer + i + 1, &sm.vertexData[i].pos, sizeof(XMFLOAT3));
 		}
 		int asd = 0;
 	}
