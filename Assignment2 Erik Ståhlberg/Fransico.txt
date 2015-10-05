@@ -1,0 +1,16 @@
+void meshAttributeChanged(MNodeMessage::AttributeMessage p_Msg, MPlug &p_Plug, MPlug &p_Plug2, void *p_ClientData)
+{
+    // make a standard string to reuse the function find()
+    std::string plugName(p_Plug.name().asChar());
+    // check if the plug p_Plug has in its name "doubleSided", which is an attribute that when is set we know that the mesh is finally available.
+    if (plugName.find("doubleSided") != std::string::npos && MNodeMessage::AttributeMessage::kAttributeSet)
+    {
+        MStatus res;
+        // construct a MFnMesh node...
+        MFnMesh meshNode(p_Plug.node(), &res);
+        if (res) 
+        {
+            // here you can use getPoints, getTriangles, etc from the MFnMesh to query all the data.
+        }
+     }
+}
