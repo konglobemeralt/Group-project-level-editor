@@ -1,4 +1,4 @@
-﻿Build started 2015-10-05 12:57:56.
+﻿Build started 2015-10-05 15:17:24.
      1>Project "F:\Från grafik till spel - konstruktion av nivåverktyg\Assignment2 Erik Ståhlberg\Assignment2\Assignment2.vcxproj" on node 2 (Build target(s)).
      1>ClCompile:
          C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\bin\x86_amd64\CL.exe /c /I"C:\Program Files\Autodesk\Maya2016\include" /Zi /nologo /W3 /WX- /sdl /Od /D _DEBUG /D _WINDOWS /D _USRDLL /D ASSIGNMENT2_EXPORTS /D _WINDLL /D _UNICODE /D UNICODE /Gm /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Fo"x64\Debug\\" /Fd"x64\Debug\vc120.pdb" /Gd /TP /errorReport:prompt Main.cpp
@@ -9,21 +9,22 @@
      1>Main.cpp(105): warning C4267: 'argument' : conversion from 'size_t' to 'unsigned int', possible loss of data
      1>Main.cpp(114): warning C4244: 'argument' : conversion from 'size_t' to 'double', possible loss of data
      1>Main.cpp(114): warning C4267: 'argument' : conversion from 'size_t' to 'unsigned int', possible loss of data
-     1>Main.cpp(231): warning C4267: 'argument' : conversion from 'size_t' to 'unsigned int', possible loss of data
-     1>Main.cpp(232): warning C4267: 'argument' : conversion from 'size_t' to 'unsigned int', possible loss of data
-     1>Main.cpp(232): warning C4244: 'argument' : conversion from 'double' to 'float', possible loss of data
-     1>Main.cpp(242): warning C4244: 'argument' : conversion from 'size_t' to 'double', possible loss of data
-     1>Main.cpp(242): warning C4267: 'argument' : conversion from 'size_t' to 'unsigned int', possible loss of data
-     1>Main.cpp(251): warning C4244: 'argument' : conversion from 'size_t' to 'double', possible loss of data
-     1>Main.cpp(251): warning C4267: 'argument' : conversion from 'size_t' to 'unsigned int', possible loss of data
-     1>Main.cpp(289): warning C4244: '+=' : conversion from 'float' to 'int', possible loss of data
+     1>Main.cpp(236): warning C4267: 'argument' : conversion from 'size_t' to 'unsigned int', possible loss of data
+     1>Main.cpp(237): warning C4267: 'argument' : conversion from 'size_t' to 'unsigned int', possible loss of data
+     1>Main.cpp(239): warning C4267: 'argument' : conversion from 'size_t' to 'int', possible loss of data
+     1>Main.cpp(277): warning C4267: 'argument' : conversion from 'size_t' to 'unsigned int', possible loss of data
+     1>Main.cpp(277): warning C4244: 'argument' : conversion from 'size_t' to 'double', possible loss of data
+     1>Main.cpp(279): warning C4267: 'argument' : conversion from 'size_t' to 'unsigned int', possible loss of data
+     1>Main.cpp(279): warning C4244: 'argument' : conversion from 'double' to 'float', possible loss of data
+     1>Main.cpp(337): warning C4244: '+=' : conversion from 'float' to 'int', possible loss of data
        Link:
          C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\bin\x86_amd64\link.exe /ERRORREPORT:PROMPT /OUT:"F:\Från grafik till spel - konstruktion av nivåverktyg\Assignment2 Erik Ståhlberg\x64\Debug\Assignment2.mll" /INCREMENTAL /NOLOGO /LIBPATH:"C:\Program Files\Autodesk\Maya2016\lib" kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /DEBUG /PDB:"F:\Från grafik till spel - konstruktion av nivåverktyg\Assignment2 Erik Ståhlberg\x64\Debug\Assignment2.pdb" /SUBSYSTEM:WINDOWS /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"F:\Från grafik till spel - konstruktion av nivåverktyg\Assignment2 Erik Ståhlberg\x64\Debug\Assignment2.lib" /MACHINE:X64 /DLL x64\Debug\Callbacks.obj
          x64\Debug\Main.obj
          x64\Debug\SharedMemory.obj
+            Creating library F:\FrÕn grafik till spel - konstruktion av nivÕverktyg\Assignment2 Erik StÕhlberg\x64\Debug\Assignment2.lib and object F:\FrÕn grafik till spel - konstruktion av nivÕverktyg\Assignment2 Erik StÕhlberg\x64\Debug\Assignment2.exp
          Assignment2.vcxproj -> F:\Från grafik till spel - konstruktion av nivåverktyg\Assignment2 Erik Ståhlberg\x64\Debug\Assignment2.mll
      1>Done Building Project "F:\Från grafik till spel - konstruktion av nivåverktyg\Assignment2 Erik Ståhlberg\Assignment2\Assignment2.vcxproj" (Build target(s)).
 
 Build succeeded.
 
-Time Elapsed 00:00:02.76
+Time Elapsed 00:00:20.26
