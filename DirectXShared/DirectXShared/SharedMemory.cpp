@@ -71,21 +71,44 @@ void SharedMemory::OpenMemory(size_t size)
 
 int SharedMemory::ReadMemory()
 {
-	meshes.push_back(MeshData());
-	tail = 4;
+	//meshes.push_back(MeshData());
+	//tail = 4;
 
-	memcpy(&meshes[0].vertexCount, (int*)buffer, sizeof(int));
-	meshes[0].vertexData.resize(meshes[0].vertexCount);
-	// Retrieve a cube from maya
-	for (size_t i = 0; i < meshes[0].vertexCount; i++)
-	{
-		memcpy(&meshes[0].vertexData[i].pos, (char*)buffer + tail, sizeof(XMFLOAT3));
-		tail += sizeof(XMFLOAT3);
-		memcpy(&meshes[0].vertexData[i].uv, (char*)buffer + tail, sizeof(XMFLOAT2));
-		tail += sizeof(XMFLOAT2);
-		memcpy(&meshes[0].vertexData[i].normal, (char*)buffer + tail, sizeof(XMFLOAT3));
-		tail += sizeof(XMFLOAT3);
-	}
+	//memcpy(&meshes[0].vertexCount, (int*)buffer, sizeof(int));
+	//meshes[0].vertexData.resize(meshes[0].vertexCount);
+	//// Retrieve a cube from maya
+	//for (size_t i = 0; i < meshes[0].vertexCount; i++)
+	//{
+	//	memcpy(&meshes[0].vertexData[i].pos, (char*)buffer + tail, sizeof(XMFLOAT3));
+	//	tail += sizeof(XMFLOAT3);
+	//	memcpy(&meshes[0].vertexData[i].uv, (char*)buffer + tail, sizeof(XMFLOAT2));
+	//	tail += sizeof(XMFLOAT2);
+	//	memcpy(&meshes[0].vertexData[i].normal, (char*)buffer + tail, sizeof(XMFLOAT3));
+	//	tail += sizeof(XMFLOAT3);
+	//}
+
+	tail = 0;
+
+	memcpy(&camPos.x, (char*)buffer, sizeof(float));
+	tail += 4;
+	memcpy(&camPos.y, (char*)buffer + tail, sizeof(float));
+	tail += 4;
+	memcpy(&camPos.z, (char*)buffer + tail, sizeof(float));
+	tail += 4;
+
+	memcpy(&viewDirection.x, (char*)buffer + tail, sizeof(float));
+	tail += 4;
+	memcpy(&viewDirection.y, (char*)buffer + tail, sizeof(float));
+	tail += 4;
+	memcpy(&viewDirection.z, (char*)buffer + tail, sizeof(float));
+	tail += 4;
+
+	memcpy(&upDirection.x, (char*)buffer + tail, sizeof(float));
+	tail += 4;
+	memcpy(&upDirection.y, (char*)buffer + tail, sizeof(float));
+	tail += 4;
+	memcpy(&upDirection.z, (char*)buffer + tail, sizeof(float));
+	tail += 4;
 
 	return 0;
 }

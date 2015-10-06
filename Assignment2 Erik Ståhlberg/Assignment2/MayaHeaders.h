@@ -27,6 +27,7 @@
 #include <maya/MSelectionList.h>
 #include <maya/MItDependencyNodes.h>
 #include <maya/MFn.h>
+#include <maya/MFnMatrixData.h>
 
 //#include <maya/MIOStream.h>
 #include <maya/MPxNode.h> 

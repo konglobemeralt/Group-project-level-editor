@@ -108,14 +108,15 @@ void D3D::Render()
 		devcon->IASetVertexBuffers(0, 1, &sm.meshesBuffer[i], &vertexSize, &offset);
 		devcon->Draw(sm.meshes[0].vertexCount, 0);
 	}
-
 	swapChain->Present(0, 0);
 }
 
 void D3D::Create()
 {
 	// CAMERA
-	XMStoreFloat4x4(&sm.view, XMMatrixTranspose(XMMatrixLookAtLH(XMVectorSet(0.0f, 2.0f, -2.0f, 0.0f), XMVectorSet(0.0f, -1.0f, 1.0f, 0.0f), XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f))));
+	smIndex = sm.ReadMemory();
+	XMStoreFloat4x4(&sm.view, XMMatrixTranspose(XMMatrixLookAtLH(XMLoadFloat4(&sm.camPos), XMLoadFloat4(&sm.viewDirection), XMLoadFloat4(&sm.upDirection))));
+	//XMStoreFloat4x4(&sm.view, XMMatrixTranspose(XMMatrixLookAtLH(XMVectorSet(0.0f, 2.0f, -2.0f, 0.0f), XMVectorSet(0.0f, -1.0f, 1.0f, 0.0f), XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f))));
 	XMStoreFloat4x4(&sm.projection, XMMatrixTranspose(XMMatrixPerspectiveFovLH(XM_PI * 0.45f, 640.0f / 480.0f, 0.1f, 500.0f)));
 	sm.viewMatrix = CreateConstantBuffer(sizeof(XMFLOAT4X4), &sm.view);
 	sm.projectionMatrix = CreateConstantBuffer(sizeof(XMFLOAT4X4), &sm.projection);
@@ -124,9 +125,9 @@ void D3D::Create()
 	worldTempBuffer = CreateConstantBuffer(sizeof(XMFLOAT4X4), &worldTemp);
 
 	// MESH
-	//sm.CreateMesh();
+	sm.CreateMesh();
 	sm.meshesBuffer.resize(1);
-	smIndex = sm.ReadMemory();
+	//smIndex = sm.ReadMemory();
 	sm.meshesBuffer[0] = CreateMesh(vertexSize * sm.meshes[0].vertexCount, sm.meshes[0].vertexData.data(), sm.meshes[0].vertexCount);
 	CreateTexture();
 }

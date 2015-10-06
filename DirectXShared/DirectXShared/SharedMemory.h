@@ -34,6 +34,10 @@ public:
 	HANDLE fmMain;
 	int tail;
 
+	XMFLOAT4 camPos;
+	XMFLOAT4 viewDirection;
+	XMFLOAT4 upDirection;
+
 	struct CircBuffer
 	{
 		size_t freeMem;
