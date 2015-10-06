@@ -1,5 +1,5 @@
-﻿Build started 2015-10-05 16:30:51.
-     1>Project "F:\Från grafik till spel - konstruktion av nivåverktyg\Assignment2 Erik Ståhlberg\Assignment2\Assignment2.vcxproj" on node 2 (Build target(s)).
+﻿Build started 2015-10-06 10:34:04.
+     1>Project "C:\temp\Group-project-level-editor\Assignment2 Erik Ståhlberg\Assignment2\Assignment2.vcxproj" on node 2 (Build target(s)).
      1>ClCompile:
          C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\bin\x86_amd64\CL.exe /c /I"C:\Program Files\Autodesk\Maya2016\include" /Zi /nologo /W3 /WX- /sdl /Od /D _DEBUG /D _WINDOWS /D _USRDLL /D ASSIGNMENT2_EXPORTS /D _WINDLL /D _UNICODE /D UNICODE /Gm /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Fo"x64\Debug\\" /Fd"x64\Debug\vc120.pdb" /Gd /TP /errorReport:prompt Main.cpp
          Main.cpp
@@ -9,26 +9,38 @@
      1>Main.cpp(105): warning C4267: 'argument' : conversion from 'size_t' to 'unsigned int', possible loss of data
      1>Main.cpp(114): warning C4244: 'argument' : conversion from 'size_t' to 'double', possible loss of data
      1>Main.cpp(114): warning C4267: 'argument' : conversion from 'size_t' to 'unsigned int', possible loss of data
-     1>Main.cpp(241): warning C4267: 'argument' : conversion from 'size_t' to 'unsigned int', possible loss of data
-     1>Main.cpp(242): warning C4267: 'argument' : conversion from 'size_t' to 'unsigned int', possible loss of data
-     1>Main.cpp(244): warning C4267: 'argument' : conversion from 'size_t' to 'int', possible loss of data
-     1>Main.cpp(307): warning C4267: 'argument' : conversion from 'size_t' to 'unsigned int', possible loss of data
-     1>Main.cpp(307): warning C4244: 'argument' : conversion from 'size_t' to 'double', possible loss of data
-     1>Main.cpp(309): warning C4267: 'argument' : conversion from 'size_t' to 'unsigned int', possible loss of data
-     1>Main.cpp(309): warning C4244: 'argument' : conversion from 'double' to 'float', possible loss of data
-     1>Main.cpp(310): warning C4267: 'argument' : conversion from 'size_t' to 'unsigned int', possible loss of data
-     1>Main.cpp(311): warning C4244: 'argument' : conversion from 'size_t' to 'double', possible loss of data
-     1>Main.cpp(311): warning C4267: 'argument' : conversion from 'size_t' to 'unsigned int', possible loss of data
-     1>Main.cpp(312): warning C4244: 'argument' : conversion from 'size_t' to 'double', possible loss of data
-     1>Main.cpp(312): warning C4267: 'argument' : conversion from 'size_t' to 'unsigned int', possible loss of data
-     1>Main.cpp(415): warning C4244: '+=' : conversion from 'float' to 'int', possible loss of data
+     1>Main.cpp(240): warning C4267: 'argument' : conversion from 'size_t' to 'unsigned int', possible loss of data
+     1>Main.cpp(242): warning C4267: 'argument' : conversion from 'size_t' to 'int', possible loss of data
+     1>Main.cpp(250): warning C4267: 'argument' : conversion from 'size_t' to 'unsigned int', possible loss of data
+     1>Main.cpp(251): warning C4267: 'argument' : conversion from 'size_t' to 'unsigned int', possible loss of data
+     1>Main.cpp(252): warning C4267: 'argument' : conversion from 'size_t' to 'unsigned int', possible loss of data
+     1>Main.cpp(262): warning C4267: 'argument' : conversion from 'size_t' to 'unsigned int', possible loss of data
+     1>Main.cpp(263): warning C4267: 'argument' : conversion from 'size_t' to 'unsigned int', possible loss of data
+     1>Main.cpp(264): warning C4267: 'argument' : conversion from 'size_t' to 'unsigned int', possible loss of data
+     1>Main.cpp(274): warning C4267: 'argument' : conversion from 'size_t' to 'unsigned int', possible loss of data
+     1>Main.cpp(275): warning C4267: 'argument' : conversion from 'size_t' to 'unsigned int', possible loss of data
+     1>Main.cpp(276): warning C4267: 'argument' : conversion from 'size_t' to 'unsigned int', possible loss of data
+     1>Main.cpp(300): warning C4267: 'argument' : conversion from 'size_t' to 'unsigned int', possible loss of data
+     1>Main.cpp(300): warning C4244: 'argument' : conversion from 'size_t' to 'double', possible loss of data
+     1>Main.cpp(301): warning C4244: 'argument' : conversion from 'size_t' to 'double', possible loss of data
+     1>Main.cpp(301): warning C4267: 'argument' : conversion from 'size_t' to 'unsigned int', possible loss of data
+     1>Main.cpp(302): warning C4244: 'argument' : conversion from 'size_t' to 'double', possible loss of data
+     1>Main.cpp(302): warning C4267: 'argument' : conversion from 'size_t' to 'unsigned int', possible loss of data
+     1>Main.cpp(303): warning C4267: 'argument' : conversion from 'size_t' to 'unsigned int', possible loss of data
+     1>Main.cpp(303): warning C4244: 'argument' : conversion from 'double' to 'float', possible loss of data
+     1>Main.cpp(304): warning C4267: 'argument' : conversion from 'size_t' to 'unsigned int', possible loss of data
+     1>Main.cpp(305): warning C4267: 'argument' : conversion from 'size_t' to 'unsigned int', possible loss of data
+     1>Main.cpp(305): warning C4244: 'argument' : conversion from 'double' to 'float', possible loss of data
+     1>Main.cpp(306): warning C4267: 'argument' : conversion from 'size_t' to 'unsigned int', possible loss of data
+     1>Main.cpp(306): warning C4244: 'argument' : conversion from 'double' to 'float', possible loss of data
+     1>Main.cpp(353): warning C4244: '+=' : conversion from 'float' to 'int', possible loss of data
        Link:
-         C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\bin\x86_amd64\link.exe /ERRORREPORT:PROMPT /OUT:"F:\Från grafik till spel - konstruktion av nivåverktyg\Assignment2 Erik Ståhlberg\x64\Debug\Assignment2.mll" /INCREMENTAL /NOLOGO /LIBPATH:"C:\Program Files\Autodesk\Maya2016\lib" kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /DEBUG /PDB:"F:\Från grafik till spel - konstruktion av nivåverktyg\Assignment2 Erik Ståhlberg\x64\Debug\Assignment2.pdb" /SUBSYSTEM:WINDOWS /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"F:\Från grafik till spel - konstruktion av nivåverktyg\Assignment2 Erik Ståhlberg\x64\Debug\Assignment2.lib" /MACHINE:X64 /DLL x64\Debug\Callbacks.obj
+         C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\bin\x86_amd64\link.exe /ERRORREPORT:PROMPT /OUT:"C:\temp\Group-project-level-editor\Assignment2 Erik Ståhlberg\x64\Debug\Assignment2.mll" /INCREMENTAL /NOLOGO /LIBPATH:"C:\Program Files\Autodesk\Maya2016\lib" kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /DEBUG /PDB:"C:\temp\Group-project-level-editor\Assignment2 Erik Ståhlberg\x64\Debug\Assignment2.pdb" /SUBSYSTEM:WINDOWS /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"C:\temp\Group-project-level-editor\Assignment2 Erik Ståhlberg\x64\Debug\Assignment2.lib" /MACHINE:X64 /DLL x64\Debug\Callbacks.obj
          x64\Debug\Main.obj
          x64\Debug\SharedMemory.obj
-         Assignment2.vcxproj -> F:\Från grafik till spel - konstruktion av nivåverktyg\Assignment2 Erik Ståhlberg\x64\Debug\Assignment2.mll
-     1>Done Building Project "F:\Från grafik till spel - konstruktion av nivåverktyg\Assignment2 Erik Ståhlberg\Assignment2\Assignment2.vcxproj" (Build target(s)).
+         Assignment2.vcxproj -> C:\temp\Group-project-level-editor\Assignment2 Erik Ståhlberg\x64\Debug\Assignment2.mll
+     1>Done Building Project "C:\temp\Group-project-level-editor\Assignment2 Erik Ståhlberg\Assignment2\Assignment2.vcxproj" (Build target(s)).
 
 Build succeeded.
 
-Time Elapsed 00:00:02.58
+Time Elapsed 00:00:02.51

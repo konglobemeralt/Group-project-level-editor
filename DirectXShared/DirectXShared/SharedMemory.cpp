@@ -72,13 +72,14 @@ void SharedMemory::OpenMemory(size_t size)
 int SharedMemory::ReadMemory()
 {
 	meshes.push_back(MeshData());
+	head = 4;
 
 	memcpy(&meshes[0].vertexCount, (int*)buffer, sizeof(int));
 	meshes[0].vertexData.resize(meshes[0].vertexCount);
 	// Retrieve a cube from maya
 	for (size_t i = 0; i < meshes[0].vertexCount; i++)
 	{
-		memcpy(&meshes[0].vertexData[i].pos, (XMFLOAT3*)buffer + i + 1, sizeof(XMFLOAT3));
+		memcpy(&meshes[0].vertexData[i].pos, (XMFLOAT3*)buffer + head, sizeof(XMFLOAT3));
 	}
 	//meshes[0].vertexCount = 36;
 

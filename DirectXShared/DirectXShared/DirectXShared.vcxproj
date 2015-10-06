@@ -151,15 +151,21 @@
     <ClCompile Include="Lights.cpp" />
     <ClCompile Include="Main.cpp" />
     <ClCompile Include="Meshes.cpp" />
+    <ClCompile Include="pch.cpp" />
     <ClCompile Include="SharedMemory.cpp" />
+    <ClCompile Include="WICTextureLoader.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Camera.h" />
     <ClInclude Include="D3D.h" />
+    <ClInclude Include="DirectXHelpers.h" />
     <ClInclude Include="Includes.h" />
     <ClInclude Include="Lights.h" />
     <ClInclude Include="Meshes.h" />
+    <ClInclude Include="pch.h" />
+    <ClInclude Include="PlatformHelpers.h" />
     <ClInclude Include="SharedMemory.h" />
+    <ClInclude Include="WICTextureLoader.h" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="PixelShader.hlsl">

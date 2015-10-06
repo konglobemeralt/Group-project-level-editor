@@ -32,6 +32,7 @@ public:
 
 	HANDLE fmCB;
 	HANDLE fmMain;
+	int head;
 
 	struct CircBuffer
 	{

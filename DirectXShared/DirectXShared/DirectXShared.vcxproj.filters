@@ -16,6 +16,9 @@
     <Filter Include="OLD">
       <UniqueIdentifier>{fe55b9a0-6641-44b2-9ba2-c3d6ae207690}</UniqueIdentifier>
     </Filter>
+    <Filter Include="WicTexture">
+      <UniqueIdentifier>{4b5cd967-a927-4028-8a53-b0635f577af1}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Main.cpp">
@@ -36,6 +39,12 @@
     <ClCompile Include="Meshes.cpp">
       <Filter>OLD</Filter>
     </ClCompile>
+    <ClCompile Include="pch.cpp">
+      <Filter>WicTexture</Filter>
+    </ClCompile>
+    <ClCompile Include="WICTextureLoader.cpp">
+      <Filter>WicTexture</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="D3D.h">
@@ -55,6 +64,18 @@
     </ClInclude>
     <ClInclude Include="Camera.h">
       <Filter>OLD</Filter>
+    </ClInclude>
+    <ClInclude Include="pch.h">
+      <Filter>WicTexture</Filter>
+    </ClInclude>
+    <ClInclude Include="PlatformHelpers.h">
+      <Filter>WicTexture</Filter>
+    </ClInclude>
+    <ClInclude Include="WICTextureLoader.h">
+      <Filter>WicTexture</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectXHelpers.h">
+      <Filter>WicTexture</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

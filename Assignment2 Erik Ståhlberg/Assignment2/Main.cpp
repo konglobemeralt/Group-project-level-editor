@@ -298,10 +298,12 @@ void MeshChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& other
 			for (size_t i = 0; i < vertexList.length(); i++)
 			{
 				MGlobal::displayInfo(MString("V: ") + vertexIDList[i] + ": " + vertexList[i].x + " " + vertexList[i].y + " " + vertexList[i].z + " "  + i);
-				sm.vertexData[i].pos = XMFLOAT3(vertexList[i].x, vertexList[i].y, vertexList[i].z);
-				sm.vertexData[i].uv = XMFLOAT2(uList[i], vList[i]);
 				MGlobal::displayInfo(MString("UV ") + i + ": " + uList[i] + " " + vList[i]);
 				MGlobal::displayInfo(MString("N ") + i + ": " + normalList[i].x + " " + normalList[i].y + " " + normalList[i].z);
+				sm.vertexData[i].pos = XMFLOAT3(vertexList[i].x, vertexList[i].y, vertexList[i].z);
+				sm.vertexData[i].uv = XMFLOAT2(uList[i], vList[i]);
+				sm.vertexData[i].pos = XMFLOAT3(vertexList[i].x, vertexList[i].y, vertexList[i].z);
+				sm.vertexData[i].normal = XMFLOAT3(normalList[i].x, normalList[i].y, normalList[i].z);
 			}
 		}
 
