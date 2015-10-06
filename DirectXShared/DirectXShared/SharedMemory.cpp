@@ -72,16 +72,20 @@ void SharedMemory::OpenMemory(size_t size)
 int SharedMemory::ReadMemory()
 {
 	meshes.push_back(MeshData());
-	head = 4;
+	tail = 4;
 
 	memcpy(&meshes[0].vertexCount, (int*)buffer, sizeof(int));
 	meshes[0].vertexData.resize(meshes[0].vertexCount);
 	// Retrieve a cube from maya
 	for (size_t i = 0; i < meshes[0].vertexCount; i++)
 	{
-		memcpy(&meshes[0].vertexData[i].pos, (XMFLOAT3*)buffer + head, sizeof(XMFLOAT3));
+		memcpy(&meshes[0].vertexData[i].pos, (char*)buffer + tail, sizeof(XMFLOAT3));
+		tail += sizeof(XMFLOAT3);
+		memcpy(&meshes[0].vertexData[i].uv, (char*)buffer + tail, sizeof(XMFLOAT2));
+		tail += sizeof(XMFLOAT2);
+		memcpy(&meshes[0].vertexData[i].normal, (char*)buffer + tail, sizeof(XMFLOAT3));
+		tail += sizeof(XMFLOAT3);
 	}
-	//meshes[0].vertexCount = 36;
 
 	return 0;
 }
@@ -91,11 +95,6 @@ void SharedMemory::CreateMesh()
 	// CUBE
 	meshes.push_back(MeshData());
 	meshes[0].vertexData.resize(6);
-
-	//meshes[0].vertexData[0].pos = XMFLOAT3(-0.5, -5.0, 0.0);
-	//meshes[0].vertexData[1].pos = XMFLOAT3(0.0, 5.0, 0.0);
-	//meshes[0].vertexData[2].pos = XMFLOAT3(5.0, -5.0, 0.0);
-	//meshes[0].vertexData[3].pos = XMFLOAT3(10.0, 5.0, 0.0);
 
 	meshes[0].vertexData[0].pos = XMFLOAT3(-0.5, -0.5, 0.0);
 	meshes[0].vertexData[1].pos = XMFLOAT3(-0.5, 0.5, 0.0);
