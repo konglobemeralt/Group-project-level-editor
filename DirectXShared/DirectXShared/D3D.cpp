@@ -104,6 +104,7 @@ void D3D::Render()
 	
 	for (size_t i = 0; i < sm.meshesBuffer.size(); i++)
 	{
+		devcon->PSSetShaderResources(1, 1, &sm.meshTextures[i]);
 		devcon->IASetVertexBuffers(0, 1, &sm.meshesBuffer[i], &vertexSize, &offset);
 		devcon->Draw(sm.meshes[0].vertexCount, 0);
 	}
@@ -123,10 +124,11 @@ void D3D::Create()
 	worldTempBuffer = CreateConstantBuffer(sizeof(XMFLOAT4X4), &worldTemp);
 
 	// MESH
-	//sm.CreateMesh();
+	sm.CreateMesh();
 	sm.meshesBuffer.resize(1);
-	smIndex = sm.ReadMemory();
+	//smIndex = sm.ReadMemory();
 	sm.meshesBuffer[0] = CreateMesh(vertexSize * sm.meshes[0].vertexCount, sm.meshes[0].vertexData.data(), sm.meshes[0].vertexCount);
+	CreateTexture();
 }
 
 ID3D11Buffer* D3D::CreateMesh(size_t size, const void* data, size_t vertexCount)
@@ -147,6 +149,14 @@ ID3D11Buffer* D3D::CreateMesh(size_t size, const void* data, size_t vertexCount)
 
 	device->CreateBuffer(&vertexBufferDesc, &VBdata, &vertexBuffer);
 	return vertexBuffer;
+}
+
+void D3D::CreateTexture()
+{
+	sm.meshTextures.resize(1);
+	CoInitialize(NULL);
+	wstring textureName = L"C:\temp\Group-project-level-editor\CubeTexture.png";
+	CreateWICTextureFromFile(device, textureName.c_str(), NULL, &sm.meshTextures[0]);
 }
 
 ID3D11Buffer* D3D::CreateConstantBuffer(size_t size, const void* data)

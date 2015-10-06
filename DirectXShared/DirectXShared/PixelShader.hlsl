@@ -10,7 +10,7 @@ SamplerState stSampler : register(s0);
 
 float4 main(VS_OUT input) : SV_TARGET
 {
-	//float4 textureColor = txDiffuse.Sample(stSampler, input.Tex);
-	float4 textureColor = float4(0.5, 0.5, 0.5, 1.0);
+	float4 textureColor = txDiffuse.Sample(stSampler, input.Tex);
+	//float4 textureColor = float4(0.5, 0.5, 0.5, 1.0);
 	return textureColor;
 }

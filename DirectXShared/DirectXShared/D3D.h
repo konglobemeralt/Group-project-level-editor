@@ -2,6 +2,7 @@
 #define D3D_H
 
 #include "SharedMemory.h"
+#include "WICTextureLoader.h"
 
 #define WINDOWSWIDTH 640
 #define WINDOWSHEIGHT 480
@@ -27,6 +28,7 @@ private:
 	// Creators
 	void Create();
 	ID3D11Buffer* CreateMesh(size_t size, const void* data, size_t vertexCount);
+	void CreateTexture();
 	ID3D11Buffer* D3D::CreateConstantBuffer(size_t size, const void* data);
 	void CreateShaders();
 

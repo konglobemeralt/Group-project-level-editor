@@ -62,6 +62,9 @@ public:
 	vector<ID3D11Buffer*> meshesBuffer;
 	vector<string> meshNames;
 
+	// TEXTURES
+	vector<ID3D11ShaderResourceView*> meshTextures;
+
 	// TRANSFORM
 	vector<string> tranformNames;
 	vector<XMFLOAT4X4> transforms;
