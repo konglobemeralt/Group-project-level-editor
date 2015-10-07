@@ -86,18 +86,18 @@ void D3D::Update()
 
 	if (smType == TCameraUpdate)
 	{
-		//devcon->Map(viewMatrix, 0, D3D11_MAP_WRITE_DISCARD, 0, &camMapSub);
-		//cameraData = (CameraData*)camMapSub.pData;
+		devcon->Map(viewMatrix, 0, D3D11_MAP_WRITE_DISCARD, 0, &camMapSub);
+		view = (XMFLOAT4X4*)camMapSub.pData;
 		ReadMemory(smType);
 
-		XMStoreFloat4x4(&view, XMMatrixTranspose(XMMatrixLookAtLH(
+		XMStoreFloat4x4(view, XMMatrixTranspose(XMMatrixLookAtLH(
 			XMVectorSet(cameraData->pos[0], cameraData->pos[1], -cameraData->pos[2], 0.0f),
 			XMVectorSet(cameraData->view[0], cameraData->view[1], -cameraData->view[2], 0.0f),
 			XMVectorSet(cameraData->up[0], cameraData->up[1], cameraData->up[2], 0.0f))));
 
-		//devcon->Unmap(viewMatrix, 0);
-
-		viewMatrix = CreateConstantBuffer(sizeof(XMFLOAT4X4), &view);
+		devcon->Unmap(viewMatrix, 0);
+			
+		//viewMatrix = CreateConstantBuffer(sizeof(XMFLOAT4X4), view);
 	}
 }
 
@@ -132,10 +132,10 @@ void D3D::Create()
 		XMVectorSet(sm.cameraData.pos[0], sm.cameraData.pos[1], -sm.cameraData.pos[2], 0.0f),
 		XMVectorSet(sm.cameraData.view[0], sm.cameraData.view[1], -sm.cameraData.view[2], 0.0f),
 		XMVectorSet(sm.cameraData.up[0], sm.cameraData.up[1], sm.cameraData.up[2], 0.0f))));*/
-	XMStoreFloat4x4(&view, XMMatrixTranspose(XMMatrixLookAtLH(XMVectorSet(0.0f, 2.0f, -2.0f, 0.0f), XMVectorSet(0.0f, -1.0f, 1.0f, 0.0f), XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f))));
-	XMStoreFloat4x4(&projection, XMMatrixTranspose(XMMatrixPerspectiveFovLH(XM_PI * 0.45f, 640.0f / 480.0f, 0.1f, 500.0f)));
-	viewMatrix = CreateConstantBuffer(sizeof(XMFLOAT4X4), &view);
-	projectionMatrix = CreateConstantBuffer(sizeof(XMFLOAT4X4), &projection);
+	XMStoreFloat4x4(view, XMMatrixTranspose(XMMatrixLookAtLH(XMVectorSet(0.0f, 2.0f, -2.0f, 0.0f), XMVectorSet(0.0f, -1.0f, 1.0f, 0.0f), XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f))));
+	XMStoreFloat4x4(projection, XMMatrixTranspose(XMMatrixPerspectiveFovLH(XM_PI * 0.45f, 640.0f / 480.0f, 0.1f, 500.0f)));
+	viewMatrix = CreateConstantBuffer(sizeof(XMFLOAT4X4), view);
+	projectionMatrix = CreateConstantBuffer(sizeof(XMFLOAT4X4), projection);
 
 	XMStoreFloat4x4(&worldTemp, XMMatrixIdentity());
 	worldTempBuffer = CreateConstantBuffer(sizeof(XMFLOAT4X4), &worldTemp);

@@ -5,6 +5,8 @@ SharedMemory::SharedMemory()
 	OpenMemory(100);
 	slotSize = 256;
 	cameraData = new CameraData();
+	view = new XMFLOAT4X4();
+	projection = new XMFLOAT4X4();
 }
 
 SharedMemory::~SharedMemory()
@@ -24,6 +26,7 @@ SharedMemory::~SharedMemory()
 void SharedMemory::OpenMemory(size_t size)
 {
 	size *= 1024 * 1024;
+	memSize = size;
 	// Circular buffer data
 	fmCB = CreateFileMapping(
 		INVALID_HANDLE_VALUE,
@@ -78,15 +81,20 @@ void SharedMemory::OpenMemory(size_t size)
 
 int SharedMemory::ReadMSGHeader()
 {
-	localTail = cb->tail;
-	// Message header
-	memcpy(&msgHeader, (char*)buffer + localTail, sizeof(MSGHeader));
-	localTail += sizeof(MSGHeader);
+	if (cb->freeMem < memSize)
+	{
+		localTail = cb->tail;
+		// Message header
+		memcpy(&msgHeader, (char*)buffer + localTail, sizeof(MSGHeader));
+		localTail += sizeof(MSGHeader);
 
-	// Move tail
-	cb->tail += sizeof(MSGHeader);
+		// Move tail
+		cb->tail += sizeof(MSGHeader);
+		cb->freeMem += sizeof(MSGHeader);
 
-	return msgHeader.type;
+		return msgHeader.type;
+	}
+	return -1;
 }
 
 int SharedMemory::ReadMemory(unsigned int type)
@@ -110,32 +118,36 @@ int SharedMemory::ReadMemory(unsigned int type)
 
 	localTail = cb->tail;
 
-	if (type == TMeshCreate)
+	if (cb->freeMem < memSize)
 	{
-		// Read and store whole mesh data
+		if (type == TMeshCreate)
+		{
+			// Read and store whole mesh data
+		}
+		else if (type == TMeshUpdate)
+		{
+			// Read updated data and store vertexbuffer
+		}
+		else if (type == TCameraUpdate)
+		{
+			// Read and store camera
+
+			// Data
+			memcpy(&cameraData->pos, (char*)buffer + localTail, sizeof(double) * 3);
+			localTail += sizeof(double) * 3;
+			memcpy(&cameraData->view, (char*)buffer + localTail, sizeof(double) * 3);
+			localTail += sizeof(double) * 3;
+			memcpy(&cameraData->up, (char*)buffer + localTail, sizeof(double) * 3);
+
+			// Move tail
+			cb->tail += slotSize;
+			cb->freeMem += slotSize;
+
+			return TCameraUpdate;
+		}
 	}
-	else if (type == TMeshUpdate)
-	{
-		// Read updated data and store vertexbuffer
-	}
-	else if (type == TCameraUpdate)
-	{
-		// Read and store camera
 
-		// Data
-		memcpy(&cameraData->pos, (char*)buffer + localTail, sizeof(double) * 3);
-		localTail += sizeof(double) * 3;
-		memcpy(&cameraData->view, (char*)buffer + localTail, sizeof(double) * 3);
-		localTail += sizeof(double) * 3;
-		memcpy(&cameraData->up, (char*)buffer + localTail, sizeof(double) * 3);
-
-		// Move tail
-		cb->tail += slotSize;
-
-		return TCameraUpdate;
-	}
-
-	return 0;
+	return -1;
 }
 
 void SharedMemory::TempMesh()

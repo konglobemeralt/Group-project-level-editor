@@ -83,8 +83,8 @@ public:
 	vector<ID3D11Buffer*> transformBuffers;
 
 	// CAMERA
-	XMFLOAT4X4 view;
-	XMFLOAT4X4 projection;
+	XMFLOAT4X4* view;
+	XMFLOAT4X4* projection;
 	ID3D11Buffer* viewMatrix;
 	ID3D11Buffer* projectionMatrix;
 	D3D11_MAPPED_SUBRESOURCE camMapSub;

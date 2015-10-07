@@ -28,6 +28,8 @@ int totalTime = 0.0f;
 
 MCallbackIdArray callbackIds;
 
+MVector camFix;
+
 SharedMemory sm;
 unsigned int localHead;
 unsigned int slotSize;
@@ -380,28 +382,40 @@ void TransformChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& 
 		{
 			MFnCamera camera(transform.child(0));
 			MVector camTranslations = transform.getTranslation(MSpace::kTransform);
-			MVector viewDirection = camera.viewDirection(MSpace::kWorld);
-			MVector upDirection = camera.upDirection();
+			MVector viewDirection = activeCamera.viewDirection(MSpace::kWorld);
+			MVector upDirection = activeCamera.upDirection(MSpace::kWorld);
 			//MFloatMatrix projectionMatrix(camera.projectionMatrix());
 
-			// Send data to shared memory
-			localHead = sm.cb->head;
-			// Message header
-			sm.msgHeader.type = TCameraUpdate;
-			sm.msgHeader.padding = slotSize - sm.camDataSize - sm.msgHeaderSize;
-			memcpy((char*)sm.buffer + localHead, &sm.msgHeader, sizeof(sm.msgHeaderSize));
-			localHead += sm.msgHeaderSize;
+			MGlobal::displayInfo(MString() + "Test: " + upDirection[0] + " " + upDirection[1] + " " + upDirection[2] + " ");
 
-			// Data
-			memcpy((char*)sm.buffer + localHead, &camTranslations, sizeof(MVector));
-			localHead += sizeof(MVector);
-			memcpy((char*)sm.buffer + localHead, &viewDirection, sizeof(MVector));
-			localHead += sizeof(MVector);
-			memcpy((char*)sm.buffer + localHead, &upDirection, sizeof(MVector));
+			viewDirection += camTranslations;
+			float x = camFix.x - camTranslations.x;
+			float y = camFix.y - camTranslations.y;
+			float z = camFix.z - camTranslations.z;
 
-			// Move header
-			sm.cb->head += slotSize;
-			sm.cb->freeMem -= slotSize;
+			if (x < 0.1 && y < 0.1, z < 0.1)
+			{
+				camFix = camTranslations;
+
+				// Send data to shared memory
+				localHead = sm.cb->head;
+				// Message header
+				sm.msgHeader.type = TCameraUpdate;
+				sm.msgHeader.padding = slotSize - sm.camDataSize - sm.msgHeaderSize;
+				memcpy((char*)sm.buffer + localHead, &sm.msgHeader, sizeof(sm.msgHeaderSize));
+				localHead += sm.msgHeaderSize;
+
+				// Data
+				memcpy((char*)sm.buffer + localHead, &camTranslations, sizeof(MVector));
+				localHead += sizeof(MVector);
+				memcpy((char*)sm.buffer + localHead, &viewDirection, sizeof(MVector));
+				localHead += sizeof(MVector);
+				memcpy((char*)sm.buffer + localHead, &upDirection, sizeof(MVector));
+
+				// Move header
+				sm.cb->head += slotSize;
+				sm.cb->freeMem -= slotSize;
+			}
 		}
 		else
 		{
@@ -457,9 +471,11 @@ void GetCameraInformation(MFnCamera& camera)
 		callbackIds.append(MNodeMessage::addNameChangedCallback(transform.object(), NameChangedCB));
 
 		MVector camTranslations = transform.getTranslation(MSpace::kTransform);
-		MVector viewDirection = camera.viewDirection(MSpace::kWorld);
-		MVector upDirection = camera.upDirection();
+		MVector viewDirection = activeCamera.viewDirection(MSpace::kWorld);
+		MVector upDirection = activeCamera.upDirection(MSpace::kWorld);
 		//MFloatMatrix projectionMatrix(camera.projectionMatrix());
+
+		viewDirection += camTranslations;
 
 		// Send data to shared memory
 		localHead = sm.cb->head;
@@ -500,8 +516,8 @@ void CameraChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& oth
 		MFnTransform transform(camera.parent(0));
 
 		MVector camTranslations = transform.getTranslation(MSpace::kTransform);
-		MVector viewDirection = camera.viewDirection(MSpace::kWorld);
-		MVector upDirection = camera.upDirection();
+		MVector viewDirection = activeCamera.viewDirection(MSpace::kTransform);
+		MVector upDirection = activeCamera.upDirection(MSpace::kObject);
 		//MFloatMatrix projectionMatrix(camera.projectionMatrix());
 
 		// Send data to shared memory
