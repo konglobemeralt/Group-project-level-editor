@@ -35,14 +35,14 @@ public:
 		unsigned int readersCount;
 		unsigned int allRead;
 	}*cb;
-	unsigned int cbSize = sizeof(CircBuffer);
+	unsigned int cbSize;
 
 	struct MSGHeader
 	{
 		unsigned int type;
 		unsigned int padding;
 	}msgHeader;
-	unsigned int msgHeaderSize = sizeof(MSGHeader);
+	unsigned int msgHeaderSize;
 
 	size_t memSize;
 	void* buffer;

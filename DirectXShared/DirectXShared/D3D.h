@@ -7,7 +7,7 @@
 #define WINDOWSWIDTH 640
 #define WINDOWSHEIGHT 480
 
-class D3D
+class D3D : SharedMemory
 {
 public:
 
@@ -22,8 +22,6 @@ private:
 	// TEMP
 	XMFLOAT4X4 worldTemp;
 	ID3D11Buffer* worldTempBuffer;
-
-	SharedMemory sm;
 
 	// Creators
 	void Create();
@@ -49,7 +47,8 @@ private:
 	UINT32 offset = 0;
 
 	// Shared memory
-	int smIndex;
+	//SharedMemory sm;
+	unsigned int smType;
 };
 
 #endif

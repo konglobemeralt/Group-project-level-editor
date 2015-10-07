@@ -4,6 +4,7 @@ SharedMemory::SharedMemory()
 {
 	OpenMemory(100);
 	slotSize = 256;
+	cameraData = new CameraData();
 }
 
 SharedMemory::~SharedMemory()
@@ -16,6 +17,8 @@ SharedMemory::~SharedMemory()
 		OutputDebugStringA("Failed unmap buffer!");
 	if (CloseHandle(fmMain) == 0)
 		OutputDebugStringA("Failed unmap fmMain!");
+
+	delete cameraData;
 }
 
 void SharedMemory::OpenMemory(size_t size)
@@ -73,7 +76,20 @@ void SharedMemory::OpenMemory(size_t size)
 	}
 }
 
-int SharedMemory::ReadMemory()
+int SharedMemory::ReadMSGHeader()
+{
+	localTail = cb->tail;
+	// Message header
+	memcpy(&msgHeader, (char*)buffer + localTail, sizeof(MSGHeader));
+	localTail += sizeof(MSGHeader);
+
+	// Move tail
+	cb->tail += sizeof(MSGHeader);
+
+	return msgHeader.type;
+}
+
+int SharedMemory::ReadMemory(unsigned int type)
 {
 	//meshes.push_back(MeshData());
 	//tail = 4;
@@ -93,37 +109,36 @@ int SharedMemory::ReadMemory()
 	//}
 
 	localTail = cb->tail;
-	// Message header
-	memcpy(&msgHeader, (char*)buffer + localTail, sizeof(MSGHeader));
-	localTail += sizeof(MSGHeader);
 
-	if (msgHeader.type == TMeshCreat)
+	if (type == TMeshCreate)
 	{
 		// Read and store whole mesh data
 	}
-	else if (msgHeader.type == TMeshUpdate)
+	else if (type == TMeshUpdate)
 	{
 		// Read updated data and store vertexbuffer
 	}
-	else if (msgHeader.type == TCameraUpdate)
+	else if (type == TCameraUpdate)
 	{
 		// Read and store camera
 
 		// Data
-		memcpy(&cameraData.pos, (char*)buffer + localTail, sizeof(double) * 3);
+		memcpy(&cameraData->pos, (char*)buffer + localTail, sizeof(double) * 3);
 		localTail += sizeof(double) * 3;
-		memcpy(&cameraData.view, (char*)buffer + localTail, sizeof(double) * 3);
+		memcpy(&cameraData->view, (char*)buffer + localTail, sizeof(double) * 3);
 		localTail += sizeof(double) * 3;
-		memcpy(&cameraData.up, (char*)buffer + localTail, sizeof(double) * 3);
+		memcpy(&cameraData->up, (char*)buffer + localTail, sizeof(double) * 3);
 
 		// Move tail
 		cb->tail += slotSize;
+
+		return TCameraUpdate;
 	}
 
 	return 0;
 }
 
-void SharedMemory::CreateMesh()
+void SharedMemory::TempMesh()
 {
 	// CUBE
 	meshes.push_back(MeshData());

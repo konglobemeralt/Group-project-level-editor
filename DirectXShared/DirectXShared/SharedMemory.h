@@ -28,8 +28,9 @@ public:
 	void Update();
 
 	void OpenMemory(size_t size);
-	int ReadMemory();
-	void CreateMesh();
+	int ReadMSGHeader();
+	int ReadMemory(unsigned int type);
+	void TempMesh();
 
 	// SHARED MEOMRY
 	HANDLE fmCB;
@@ -86,13 +87,14 @@ public:
 	XMFLOAT4X4 projection;
 	ID3D11Buffer* viewMatrix;
 	ID3D11Buffer* projectionMatrix;
+	D3D11_MAPPED_SUBRESOURCE camMapSub;
 
 	struct CameraData
 	{
 		double pos[3];
 		double view[3];
 		double up[3];
-	}cameraData;
+	}* cameraData;
 
 	//LIGHT
 	vector<string> lightNames;

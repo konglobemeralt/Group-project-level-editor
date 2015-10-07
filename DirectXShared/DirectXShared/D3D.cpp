@@ -82,10 +82,23 @@ D3D::~D3D() {}
 
 void D3D::Update()
 {
-	//smIndex = sm.ReadMemory();
+	smType = ReadMSGHeader();
 
-	//if (smIndex == 0)
-	//	Create();
+	if (smType == TCameraUpdate)
+	{
+		//devcon->Map(viewMatrix, 0, D3D11_MAP_WRITE_DISCARD, 0, &camMapSub);
+		//cameraData = (CameraData*)camMapSub.pData;
+		ReadMemory(smType);
+
+		XMStoreFloat4x4(&view, XMMatrixTranspose(XMMatrixLookAtLH(
+			XMVectorSet(cameraData->pos[0], cameraData->pos[1], -cameraData->pos[2], 0.0f),
+			XMVectorSet(cameraData->view[0], cameraData->view[1], -cameraData->view[2], 0.0f),
+			XMVectorSet(cameraData->up[0], cameraData->up[1], cameraData->up[2], 0.0f))));
+
+		//devcon->Unmap(viewMatrix, 0);
+
+		viewMatrix = CreateConstantBuffer(sizeof(XMFLOAT4X4), &view);
+	}
 }
 
 void D3D::Render()
@@ -96,17 +109,17 @@ void D3D::Render()
 	devcon->ClearDepthStencilView(depthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
 	devcon->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	devcon->VSSetConstantBuffers(0, 1, &worldTempBuffer);
-	devcon->VSSetConstantBuffers(1, 1, &sm.viewMatrix);
-	devcon->VSSetConstantBuffers(2, 1, &sm.projectionMatrix);
+	devcon->VSSetConstantBuffers(1, 1, &viewMatrix);
+	devcon->VSSetConstantBuffers(2, 1, &projectionMatrix);
 	devcon->IASetInputLayout(inputLayout);
 	devcon->VSSetShader(vertexShader, NULL, 0);
 	devcon->PSSetShader(pixelShader, NULL, 0);
 
-	for (size_t i = 0; i < sm.meshesBuffer.size(); i++)
+	for (size_t i = 0; i < meshesBuffer.size(); i++)
 	{
-		devcon->PSSetShaderResources(0, 1, &sm.meshTextures[i]);
-		devcon->IASetVertexBuffers(0, 1, &sm.meshesBuffer[i], &vertexSize, &offset);
-		devcon->Draw(sm.meshes[0].vertexCount, 0);
+		devcon->PSSetShaderResources(0, 1, &meshTextures[i]);
+		devcon->IASetVertexBuffers(0, 1, &meshesBuffer[i], &vertexSize, &offset);
+		devcon->Draw(meshes[0].vertexCount, 0);
 	}
 	swapChain->Present(0, 0);
 }
@@ -114,24 +127,24 @@ void D3D::Render()
 void D3D::Create()
 {
 	// CAMERA
-	smIndex = sm.ReadMemory();
-	XMStoreFloat4x4(&sm.view, XMMatrixTranspose(XMMatrixLookAtLH(
+	//smIndex = sm.ReadMemory();
+	/*XMStoreFloat4x4(&sm.view, XMMatrixTranspose(XMMatrixLookAtLH(
 		XMVectorSet(sm.cameraData.pos[0], sm.cameraData.pos[1], -sm.cameraData.pos[2], 0.0f),
 		XMVectorSet(sm.cameraData.view[0], sm.cameraData.view[1], -sm.cameraData.view[2], 0.0f),
-		XMVectorSet(sm.cameraData.up[0], sm.cameraData.up[1], sm.cameraData.up[2], 0.0f))));
-	//XMStoreFloat4x4(&sm.view, XMMatrixTranspose(XMMatrixLookAtLH(XMVectorSet(0.0f, 2.0f, -2.0f, 0.0f), XMVectorSet(0.0f, -1.0f, 1.0f, 0.0f), XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f))));
-	XMStoreFloat4x4(&sm.projection, XMMatrixTranspose(XMMatrixPerspectiveFovLH(XM_PI * 0.45f, 640.0f / 480.0f, 0.1f, 500.0f)));
-	sm.viewMatrix = CreateConstantBuffer(sizeof(XMFLOAT4X4), &sm.view);
-	sm.projectionMatrix = CreateConstantBuffer(sizeof(XMFLOAT4X4), &sm.projection);
+		XMVectorSet(sm.cameraData.up[0], sm.cameraData.up[1], sm.cameraData.up[2], 0.0f))));*/
+	XMStoreFloat4x4(&view, XMMatrixTranspose(XMMatrixLookAtLH(XMVectorSet(0.0f, 2.0f, -2.0f, 0.0f), XMVectorSet(0.0f, -1.0f, 1.0f, 0.0f), XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f))));
+	XMStoreFloat4x4(&projection, XMMatrixTranspose(XMMatrixPerspectiveFovLH(XM_PI * 0.45f, 640.0f / 480.0f, 0.1f, 500.0f)));
+	viewMatrix = CreateConstantBuffer(sizeof(XMFLOAT4X4), &view);
+	projectionMatrix = CreateConstantBuffer(sizeof(XMFLOAT4X4), &projection);
 
 	XMStoreFloat4x4(&worldTemp, XMMatrixIdentity());
 	worldTempBuffer = CreateConstantBuffer(sizeof(XMFLOAT4X4), &worldTemp);
 
 	// MESH
-	sm.CreateMesh();
-	sm.meshesBuffer.resize(1);
+	TempMesh();
+	meshesBuffer.resize(1);
 	//smIndex = sm.ReadMemory();
-	sm.meshesBuffer[0] = CreateMesh(vertexSize * sm.meshes[0].vertexCount, sm.meshes[0].vertexData.data(), sm.meshes[0].vertexCount);
+	meshesBuffer[0] = CreateMesh(vertexSize * meshes[0].vertexCount, meshes[0].vertexData.data(), meshes[0].vertexCount);
 	CreateTexture();
 }
 
@@ -157,10 +170,10 @@ ID3D11Buffer* D3D::CreateMesh(size_t size, const void* data, size_t vertexCount)
 
 void D3D::CreateTexture()
 {
-	sm.meshTextures.resize(1);
+	meshTextures.resize(1);
 	CoInitialize(NULL);
 	wstring textureName = L"CubeTexture.png";
-	CreateWICTextureFromFile(device, textureName.c_str(), NULL, &sm.meshTextures[0]);
+	CreateWICTextureFromFile(device, textureName.c_str(), NULL, &meshTextures[0]);
 }
 
 ID3D11Buffer* D3D::CreateConstantBuffer(size_t size, const void* data)
