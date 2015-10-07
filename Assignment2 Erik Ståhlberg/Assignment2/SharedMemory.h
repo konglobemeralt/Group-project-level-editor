@@ -6,6 +6,7 @@
 #include <iostream>
 #include <windows.h>
 #include <DirectXMath.h>
+#include "Enumerations.h"
 
 using namespace std;
 using namespace DirectX;
@@ -28,23 +29,20 @@ public:
 
 	struct CircBuffer
 	{
-		size_t freeMem;
-		size_t head;
-		size_t tail;
-		size_t readersCount;
-		size_t allRead;
+		unsigned int freeMem;
+		unsigned int head;
+		unsigned int tail;
+		unsigned int readersCount;
+		unsigned int allRead;
 	}*cb;
+	unsigned int cbSize = sizeof(CircBuffer);
 
-	struct MainHeader
+	struct MSGHeader
 	{
-		size_t id;
-		size_t length;
-		size_t padder;
-
-		size_t objectType;
-		size_t nameLength;
-		size_t type;
-	};
+		unsigned int type;
+		unsigned int padding;
+	}msgHeader;
+	unsigned int msgHeaderSize = sizeof(MSGHeader);
 
 	size_t memSize;
 	void* buffer;
@@ -57,6 +55,9 @@ public:
 		XMFLOAT3 normal;
 	};
 	vector<VertexData> vertexData;
+
+	// Camera
+	unsigned camDataSize;
 };
 
 #endif

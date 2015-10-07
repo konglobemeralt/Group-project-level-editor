@@ -29,11 +29,14 @@ char* SharedMemory::OpenMemory(size_t size)
 		return "Could not map view of file!";
 	}
 
-	cb->head = 0;
-	cb->tail = 0;
-	cb->freeMem = size;
-	cb->readersCount = 0;
-	cb->allRead = 0;
+	if (GetLastError() != ERROR_ALREADY_EXISTS)
+	{
+		cb->head = 0;
+		cb->tail = 0;
+		cb->freeMem = size;
+		cb->readersCount = 0;
+		cb->allRead = 0;
+	}
 
 	// Main data
 	fmMain = CreateFileMapping(

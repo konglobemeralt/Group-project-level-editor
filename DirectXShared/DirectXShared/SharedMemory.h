@@ -8,6 +8,7 @@
 #include <string>
 #include <iostream>
 #include <windows.h>
+#include "Enumerations.h"
 
 using namespace DirectX;
 using namespace std;
@@ -30,25 +31,30 @@ public:
 	int ReadMemory();
 	void CreateMesh();
 
+	// SHARED MEOMRY
 	HANDLE fmCB;
 	HANDLE fmMain;
-	int tail;
-
-	XMFLOAT4 camPos;
-	XMFLOAT4 viewDirection;
-	XMFLOAT4 upDirection;
+	unsigned int slotSize;
+	unsigned int localTail;
 
 	struct CircBuffer
 	{
-		size_t freeMem;
-		size_t head;
-		size_t tail;
-		size_t readersCount;
-		size_t allRead;
-	}* cb;
+		unsigned int freeMem;
+		unsigned int head;
+		unsigned int tail;
+		unsigned int readersCount;
+		unsigned int allRead;
+	}*cb;
 
 	size_t memSize;
 	void* buffer;
+
+	// MESSAGE HEADER
+	struct MSGHeader
+	{
+		unsigned int type;
+		unsigned int padding;
+	}msgHeader;
 
 	// MESH
 	struct VertexData
@@ -80,6 +86,13 @@ public:
 	XMFLOAT4X4 projection;
 	ID3D11Buffer* viewMatrix;
 	ID3D11Buffer* projectionMatrix;
+
+	struct CameraData
+	{
+		double pos[3];
+		double view[3];
+		double up[3];
+	}cameraData;
 
 	//LIGHT
 	vector<string> lightNames;

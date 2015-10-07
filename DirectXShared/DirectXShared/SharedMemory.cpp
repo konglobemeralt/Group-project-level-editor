@@ -2,7 +2,8 @@
 
 SharedMemory::SharedMemory()
 {
-	OpenMemory(10);
+	OpenMemory(100);
+	slotSize = 256;
 }
 
 SharedMemory::~SharedMemory()
@@ -41,11 +42,14 @@ void SharedMemory::OpenMemory(size_t size)
 		CloseHandle(cb);
 	}
 
-	cb->head = 0;
-	cb->tail = 0;
-	cb->freeMem = size;
-	cb->readersCount = 0;
-	cb->allRead = 0;
+	if (GetLastError() != ERROR_ALREADY_EXISTS)
+	{
+		cb->head = 0;
+		cb->tail = 0;
+		cb->freeMem = size;
+		cb->readersCount = 0;
+		cb->allRead = 0;
+	}
 
 	// Main data
 	fmMain = CreateFileMapping(
@@ -74,6 +78,7 @@ int SharedMemory::ReadMemory()
 	//meshes.push_back(MeshData());
 	//tail = 4;
 
+	// Test mesh
 	//memcpy(&meshes[0].vertexCount, (int*)buffer, sizeof(int));
 	//meshes[0].vertexData.resize(meshes[0].vertexCount);
 	//// Retrieve a cube from maya
@@ -87,28 +92,33 @@ int SharedMemory::ReadMemory()
 	//	tail += sizeof(XMFLOAT3);
 	//}
 
-	tail = 0;
+	localTail = cb->tail;
+	// Message header
+	memcpy(&msgHeader, (char*)buffer + localTail, sizeof(MSGHeader));
+	localTail += sizeof(MSGHeader);
 
-	memcpy(&camPos.x, (char*)buffer, sizeof(float));
-	tail += 4;
-	memcpy(&camPos.y, (char*)buffer + tail, sizeof(float));
-	tail += 4;
-	memcpy(&camPos.z, (char*)buffer + tail, sizeof(float));
-	tail += 4;
+	if (msgHeader.type == TMeshCreat)
+	{
+		// Read and store whole mesh data
+	}
+	else if (msgHeader.type == TMeshUpdate)
+	{
+		// Read updated data and store vertexbuffer
+	}
+	else if (msgHeader.type == TCameraUpdate)
+	{
+		// Read and store camera
 
-	memcpy(&viewDirection.x, (char*)buffer + tail, sizeof(float));
-	tail += 4;
-	memcpy(&viewDirection.y, (char*)buffer + tail, sizeof(float));
-	tail += 4;
-	memcpy(&viewDirection.z, (char*)buffer + tail, sizeof(float));
-	tail += 4;
+		// Data
+		memcpy(&cameraData.pos, (char*)buffer + localTail, sizeof(double) * 3);
+		localTail += sizeof(double) * 3;
+		memcpy(&cameraData.view, (char*)buffer + localTail, sizeof(double) * 3);
+		localTail += sizeof(double) * 3;
+		memcpy(&cameraData.up, (char*)buffer + localTail, sizeof(double) * 3);
 
-	memcpy(&upDirection.x, (char*)buffer + tail, sizeof(float));
-	tail += 4;
-	memcpy(&upDirection.y, (char*)buffer + tail, sizeof(float));
-	tail += 4;
-	memcpy(&upDirection.z, (char*)buffer + tail, sizeof(float));
-	tail += 4;
+		// Move tail
+		cb->tail += slotSize;
+	}
 
 	return 0;
 }

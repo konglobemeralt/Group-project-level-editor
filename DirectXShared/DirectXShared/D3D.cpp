@@ -1,6 +1,6 @@
 #include "D3D.h"
 
-D3D::D3D(){}
+D3D::D3D() {}
 
 D3D::D3D(HWND win)
 {
@@ -78,7 +78,7 @@ D3D::D3D(HWND win)
 	Create();
 }
 
-D3D::~D3D(){}
+D3D::~D3D() {}
 
 void D3D::Update()
 {
@@ -101,7 +101,7 @@ void D3D::Render()
 	devcon->IASetInputLayout(inputLayout);
 	devcon->VSSetShader(vertexShader, NULL, 0);
 	devcon->PSSetShader(pixelShader, NULL, 0);
-	
+
 	for (size_t i = 0; i < sm.meshesBuffer.size(); i++)
 	{
 		devcon->PSSetShaderResources(0, 1, &sm.meshTextures[i]);
@@ -115,7 +115,10 @@ void D3D::Create()
 {
 	// CAMERA
 	smIndex = sm.ReadMemory();
-	XMStoreFloat4x4(&sm.view, XMMatrixTranspose(XMMatrixLookAtLH(XMLoadFloat4(&sm.camPos), XMLoadFloat4(&sm.viewDirection), XMLoadFloat4(&sm.upDirection))));
+	XMStoreFloat4x4(&sm.view, XMMatrixTranspose(XMMatrixLookAtLH(
+		XMVectorSet(sm.cameraData.pos[0], sm.cameraData.pos[1], -sm.cameraData.pos[2], 0.0f),
+		XMVectorSet(sm.cameraData.view[0], sm.cameraData.view[1], -sm.cameraData.view[2], 0.0f),
+		XMVectorSet(sm.cameraData.up[0], sm.cameraData.up[1], sm.cameraData.up[2], 0.0f))));
 	//XMStoreFloat4x4(&sm.view, XMMatrixTranspose(XMMatrixLookAtLH(XMVectorSet(0.0f, 2.0f, -2.0f, 0.0f), XMVectorSet(0.0f, -1.0f, 1.0f, 0.0f), XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f))));
 	XMStoreFloat4x4(&sm.projection, XMMatrixTranspose(XMMatrixPerspectiveFovLH(XM_PI * 0.45f, 640.0f / 480.0f, 0.1f, 500.0f)));
 	sm.viewMatrix = CreateConstantBuffer(sizeof(XMFLOAT4X4), &sm.view);

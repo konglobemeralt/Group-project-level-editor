@@ -2,14 +2,25 @@
 #include <iostream>
 #include "SharedMemory.h"
 
-void NodeCreationCB(MObject& node, void* clientData);
+void GetSceneData();
+
+void GetMeshInformation(MFnMesh& mesh);
+void MeshCreationCB(MObject& node, void* clientData);
 void MeshChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& otherPlug, void* clientData);
-void NameChangedCB(MObject& node, const MString& prevName, void* clientData);
-void TimerCB(float elapsedTime, float lastTime, void* clientData);
+
+void GetTransformInformation(MFnTransform& transform);
 void TransformCreationCB(MObject& object, void* clientData);
 void TransformChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& otherPlug, void* clientData);
+
+void GetCameraInformation(MFnCamera& camera);
+void CameraCreationCB(MObject& object, void* clientData);
+void CameraChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& otherPlug, void* clientData);
+
 void LightCreationCB(MObject& lightObject, void* clientData);
 void LightChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& otherPlug, void* clientData);
+
+void NameChangedCB(MObject& node, const MString& prevName, void* clientData);
+void TimerCB(float elapsedTime, float lastTime, void* clientData);
 
 // Timer callback
 float period = 5.0f;
@@ -18,10 +29,8 @@ int totalTime = 0.0f;
 MCallbackIdArray callbackIds;
 
 SharedMemory sm;
-
-void GetSceneData();
-void GetMeshInformation(MFnMesh& mesh);
-void GetTransformInformation(MFnTransform& transform);
+unsigned int localHead;
+unsigned int slotSize;
 
 EXPORT MStatus initializePlugin(MObject obj)
 {
@@ -31,11 +40,15 @@ EXPORT MStatus initializePlugin(MObject obj)
 	if (MFAIL(res))
 		CHECK_MSTATUS(res);
 
-	MGlobal::displayInfo(sm.OpenMemory(10));
+	//sm.camDataSize = sizeof(MVector) * 3;
+	localHead = 0;
+	slotSize = 256;
+
+	MGlobal::displayInfo(sm.OpenMemory(1));
 
 	GetSceneData();
 
-	callbackIds.append(MDGMessage::addNodeAddedCallback(NodeCreationCB, "mesh", &res));
+	callbackIds.append(MDGMessage::addNodeAddedCallback(MeshCreationCB, "mesh", &res));
 	callbackIds.append(MDGMessage::addNodeAddedCallback(TransformCreationCB, "transform", &res));
 	callbackIds.append(MDGMessage::addNodeAddedCallback(LightCreationCB, "light", &res));
 	callbackIds.append(MTimerMessage::addTimerCallback(period, TimerCB, &res));
@@ -82,125 +95,17 @@ void GetSceneData()
 		itTransform.next();
 	}
 
-	MItDag itCamera(MItDag::kDepthFirst, MFn::kCamera);
-	while (!itCamera.isDone())
-	{
-		M3dView view = M3dView::active3dView();
-
-		MDagPath camPath;
-
-		view.getCamera(camPath);
-
-		MFnCamera camera(camPath);
-
-		//MFnCamera camera(itCamera.item());
-		//if (camera.name() == "perspShape")
-		//{
-
-		//MGlobal::displayInfo(MString() + camera.parent(0));
-
-		MFnTransform CamPos(camera.parent(0));
-
-		MVector camTranslations = CamPos.getTranslation(MSpace::kWorld);
-		MVector viewDirection = camera.viewDirection();
-		MVector upDirection = camera.upDirection();
-		//MFloatMatrix projectionMatrix(camera.projectionMatrix());
-
-		MGlobal::displayInfo(camera.name());
-		// Send data to shared memory
-		int size = sizeof(MVector)* 3;
-		int head = 0;
-		//memcpy((char*)sm.buffer, &size, sizeof(int));
-
-		memcpy((char*)sm.buffer, &camTranslations.x, sizeof(float));
-		head += 4;
-		memcpy((char*)sm.buffer + head, &camTranslations.y, sizeof(float));
-		head += 4;
-		memcpy((char*)sm.buffer + head, &camTranslations.z, sizeof(float));
-		head += 4;
-
-		memcpy((char*)sm.buffer + head, &viewDirection.x, sizeof(float));
-		head += 4;
-		memcpy((char*)sm.buffer + head, &viewDirection.y, sizeof(float));
-		head += 4;
-		memcpy((char*)sm.buffer + head, &viewDirection.z, sizeof(float));
-		head += 4;
-
-		memcpy((char*)sm.buffer + head, &upDirection.x, sizeof(float));
-		head += 4;
-		memcpy((char*)sm.buffer + head, &upDirection.y, sizeof(float));
-		head += 4;
-		memcpy((char*)sm.buffer + head, &upDirection.z, sizeof(float));
-		head += 4;
-		//}
-
-		itCamera.next();
-	}
+	//MItDag itCamera(MItDag::kDepthFirst, MFn::kCamera);
+	//while (!itCamera.isDone())
+	//{
+	//	MFnCamera camera(itCamera.item());
+	//	GetCameraInformation(camera);
+	//	callbackIds.append(MNodeMessage::addAttributeChangedCallback(camera.object(), CameraChangedCB));
+	//	callbackIds.append(MNodeMessage::addNameChangedCallback(camera.object(), NameChangedCB));
+	//	itCamera.next();
+	//}
 }
 
-void LightCreationCB(MObject& lightObject, void* clientData)
-{
-	callbackIds.append(MNodeMessage::addAttributeChangedCallback(lightObject, LightChangedCB));
-
-	MFnLight light(lightObject);
-
-	//MMatrix test;
-
-	//light.transformationMatrix();
-
-	MObject dad = light.parent(0);
-
-	MFnTransform lightPoint(dad);
-	callbackIds.append(MNodeMessage::addAttributeChangedCallback(lightPoint.object(), LightChangedCB));
-
-	MColor color;
-	MVector position;
-
-	float r, b, g, a;
-
-	MStatus status;
-	if (dad.hasFn(MFn::kTransform))
-	{
-		position = lightPoint.getTranslation(MSpace::kObject, &status);
-		MGlobal::displayInfo(MString() + "HEJ");
-	}
-	color = light.color();
-	r = color.r;
-	b = color.b;
-	g = color.g;
-	a = color.a;
-
-	MGlobal::displayInfo(MString() + "Color: " + r + " " + b + " " + g + " " + a);
-	MGlobal::displayInfo(MString() + "Position: " + position.x + " " + position.y + " " + position.z);
-}
-
-void LightChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& otherPlug, void* clientData)
-{
-	MFnLight light(plug.node());
-
-	if (plug.partialName() == "cl")
-	{
-		MColor color(light.color());
-		float r, b, g, a;
-
-		r = color.r;
-		b = color.b;
-		g = color.g;
-		a = color.a;
-
-		MGlobal::displayInfo(MString() + "Color: " + r + " " + b + " " + g + " " + a);
-	}
-	else if (msg & MNodeMessage::kAttributeSet)
-	{
-		MFnTransform lightPoint(plug.node());
-
-		MVector position;
-
-		position = lightPoint.getTranslation(MSpace::kObject);
-
-		MGlobal::displayInfo(MString() + "Position: " + position.x + " " + position.y + " " + position.z);
-	}
-}
 
 void GetMeshInformation(MFnMesh& mesh)
 {
@@ -237,131 +142,11 @@ void GetMeshInformation(MFnMesh& mesh)
 	}
 }
 
-void GetTransformInformation(MFnTransform& transform)
-{
-	MGlobal::displayInfo("Transform: " + transform.fullPathName() + " loaded!");
-	MPlug plugValue;
-
-	// Translation
-	float tx, ty, tz;
-	plugValue = transform.findPlug("tx");
-	plugValue.getValue(tx);
-	plugValue = transform.findPlug("ty");
-	plugValue.getValue(ty);
-	plugValue = transform.findPlug("tz");
-	plugValue.getValue(tz);
-
-	// Rotation
-	float rx, ry, rz;
-	plugValue = transform.findPlug("rx");
-	plugValue.getValue(rx);
-	plugValue = transform.findPlug("ry");
-	plugValue.getValue(ry);
-	plugValue = transform.findPlug("rz");
-	plugValue.getValue(rz);
-
-	// Scale
-	float sx, sy, sz;
-	plugValue = transform.findPlug("sx");
-	plugValue.getValue(sx);
-	plugValue = transform.findPlug("sy");
-	plugValue.getValue(sy);
-	plugValue = transform.findPlug("sz");
-	plugValue.getValue(sz);
-
-	// Print to script editor
-	MGlobal::displayInfo(MString("Translate: ") + tx + " " + ty + " " + tz);
-	MGlobal::displayInfo(MString("Rotation:  ") + rx + " " + ry + " " + rz);
-	MGlobal::displayInfo(MString("Scale:     ") + sx + " " + sy + " " + sz);
-}
-
-void NodeCreationCB(MObject& object, void* clientData)
+void MeshCreationCB(MObject& object, void* clientData)
 {
 	// Add a callback specifik to every new mesh that are created
 	callbackIds.append(MNodeMessage::addAttributeChangedCallback(object, MeshChangedCB));
 	callbackIds.append(MNodeMessage::addNameChangedCallback(object, NameChangedCB));
-}
-
-void TransformCreationCB(MObject& object, void* clientData)
-{
-	// Add a callback specifik to every new transform that are created
-	callbackIds.append(MNodeMessage::addAttributeChangedCallback(object, TransformChangedCB));
-	callbackIds.append(MNodeMessage::addNameChangedCallback(object, NameChangedCB));
-
-	MStatus res;
-	MFnTransform transform(object, &res);
-	MGlobal::displayInfo("Transform: " + transform.fullPathName() + " created!");
-	MPlug plugValue;
-
-	// Translation
-	float tx, ty, tz;
-	plugValue = transform.findPlug("tx");
-	plugValue.getValue(tx);
-	plugValue = transform.findPlug("ty");
-	plugValue.getValue(ty);
-	plugValue = transform.findPlug("tz");
-	plugValue.getValue(tz);
-
-	// Rotation
-	float rx, ry, rz;
-	plugValue = transform.findPlug("rx");
-	plugValue.getValue(rx);
-	plugValue = transform.findPlug("ry");
-	plugValue.getValue(ry);
-	plugValue = transform.findPlug("rz");
-	plugValue.getValue(rz);
-
-	// Scale
-	float sx, sy, sz;
-	plugValue = transform.findPlug("sx");
-	plugValue.getValue(sx);
-	plugValue = transform.findPlug("sy");
-	plugValue.getValue(sy);
-	plugValue = transform.findPlug("sz");
-	plugValue.getValue(sz);
-
-	// Print to script editor
-	MGlobal::displayInfo(MString("Translate: ") + tx + " " + ty + " " + tz);
-	MGlobal::displayInfo(MString("Rotation:  ") + rx + " " + ry + " " + rz);
-	MGlobal::displayInfo(MString("Scale:     ") + sx + " " + sy + " " + sz);
-
-	MFnMatrixData matrix(object);
-}
-
-void TransformChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& otherPlug, void* clientData)
-{
-	if (msg & MNodeMessage::kAttributeSet)
-	{
-		MStatus res;
-		MObject object = plug.node();
-		MFnTransform transform(object, &res);
-
-		// Translation
-		MVector translation = transform.getTranslation(MSpace::kObject);
-		//// Rotation
-		//double rotation[3];
-		//transform.getRotation(rotation, MTransformationMatrix::kXYZ, MSpace::kObject);
-		// Scale
-		double scale[3];
-		transform.getScale(scale);
-
-		MGlobal::displayInfo("Transform: " + transform.fullPathName() + " has changed!");
-		MPlug plugValue;
-
-		// Rotation
-		float rx, ry, rz;
-		plugValue = transform.findPlug("rx");
-		plugValue.getValue(rx);
-		plugValue = transform.findPlug("ry");
-		plugValue.getValue(ry);
-		plugValue = transform.findPlug("rz");
-		plugValue.getValue(rz);
-
-		// Print to script editor
-		MGlobal::displayInfo(MString("Translate: ") + translation.x + " " + translation.y + " " + translation.z);
-		MGlobal::displayInfo(MString("Rotation:  ") + rx + " " + ry + " " + rz);
-		MGlobal::displayInfo(MString("Scale:     ") + scale[0] + " " + scale[1] + " " + scale[2]);
-	}
 }
 
 void MeshChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& otherPlug, void* clientData)
@@ -492,6 +277,290 @@ void MeshChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& other
 		MGlobal::displayInfo(MString("Vertex ID: ") + plug.logicalIndex() + " " + point.x + " " + point.y + " " + point.z);
 	}
 }
+
+
+void GetTransformInformation(MFnTransform& transform)
+{
+	MGlobal::displayInfo("Transform: " + transform.fullPathName() + " loaded!");
+	MPlug plugValue;
+
+	// Translation
+	float tx, ty, tz;
+	plugValue = transform.findPlug("tx");
+	plugValue.getValue(tx);
+	plugValue = transform.findPlug("ty");
+	plugValue.getValue(ty);
+	plugValue = transform.findPlug("tz");
+	plugValue.getValue(tz);
+
+	// Rotation
+	float rx, ry, rz;
+	plugValue = transform.findPlug("rx");
+	plugValue.getValue(rx);
+	plugValue = transform.findPlug("ry");
+	plugValue.getValue(ry);
+	plugValue = transform.findPlug("rz");
+	plugValue.getValue(rz);
+
+	// Scale
+	float sx, sy, sz;
+	plugValue = transform.findPlug("sx");
+	plugValue.getValue(sx);
+	plugValue = transform.findPlug("sy");
+	plugValue.getValue(sy);
+	plugValue = transform.findPlug("sz");
+	plugValue.getValue(sz);
+
+	// Print to script editor
+	MGlobal::displayInfo(MString("Translate: ") + tx + " " + ty + " " + tz);
+	MGlobal::displayInfo(MString("Rotation:  ") + rx + " " + ry + " " + rz);
+	MGlobal::displayInfo(MString("Scale:     ") + sx + " " + sy + " " + sz);
+}
+
+void TransformCreationCB(MObject& object, void* clientData)
+{
+	// Add a callback specifik to every new transform that are created
+	callbackIds.append(MNodeMessage::addAttributeChangedCallback(object, TransformChangedCB));
+	callbackIds.append(MNodeMessage::addNameChangedCallback(object, NameChangedCB));
+
+	MStatus res;
+	MFnTransform transform(object, &res);
+	MGlobal::displayInfo("Transform: " + transform.fullPathName() + " created!");
+	MPlug plugValue;
+
+	// Translation
+	float tx, ty, tz;
+	plugValue = transform.findPlug("tx");
+	plugValue.getValue(tx);
+	plugValue = transform.findPlug("ty");
+	plugValue.getValue(ty);
+	plugValue = transform.findPlug("tz");
+	plugValue.getValue(tz);
+
+	// Rotation
+	float rx, ry, rz;
+	plugValue = transform.findPlug("rx");
+	plugValue.getValue(rx);
+	plugValue = transform.findPlug("ry");
+	plugValue.getValue(ry);
+	plugValue = transform.findPlug("rz");
+	plugValue.getValue(rz);
+
+	// Scale
+	float sx, sy, sz;
+	plugValue = transform.findPlug("sx");
+	plugValue.getValue(sx);
+	plugValue = transform.findPlug("sy");
+	plugValue.getValue(sy);
+	plugValue = transform.findPlug("sz");
+	plugValue.getValue(sz);
+
+	// Print to script editor
+	MGlobal::displayInfo(MString("Translate: ") + tx + " " + ty + " " + tz);
+	MGlobal::displayInfo(MString("Rotation:  ") + rx + " " + ry + " " + rz);
+	MGlobal::displayInfo(MString("Scale:     ") + sx + " " + sy + " " + sz);
+
+	MFnMatrixData matrix(object);
+}
+
+void TransformChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& otherPlug, void* clientData)
+{
+	if (msg & MNodeMessage::kAttributeSet)
+	{
+		MStatus res;
+		MObject object = plug.node();
+		MFnTransform transform(object, &res);
+		////MMatrix matrix = transform.transformationMatrix();
+		////float m[4][4];
+		////matrix.get(m);
+
+		// Translation
+		MVector translation = transform.getTranslation(MSpace::kObject);
+		//// Rotation
+		//double rotation[3];
+		//transform.getRotation(rotation, MTransformationMatrix::kXYZ, MSpace::kObject);
+		// Scale
+		double scale[3];
+		transform.getScale(scale);
+
+		MGlobal::displayInfo("Transform: " + transform.fullPathName() + " has changed!");
+		MPlug plugValue;
+
+		// Rotation
+		float rx, ry, rz;
+		plugValue = transform.findPlug("rx");
+		plugValue.getValue(rx);
+		plugValue = transform.findPlug("ry");
+		plugValue.getValue(ry);
+		plugValue = transform.findPlug("rz");
+		plugValue.getValue(rz);
+
+		// Print to script editor
+		MGlobal::displayInfo(MString("Translate: ") + translation.x + " " + translation.y + " " + translation.z);
+		MGlobal::displayInfo(MString("Rotation:  ") + rx + " " + ry + " " + rz);
+		MGlobal::displayInfo(MString("Scale:     ") + scale[0] + " " + scale[1] + " " + scale[2]);
+	}
+}
+
+
+void GetCameraInformation(MFnCamera& camera)
+{
+	M3dView view = M3dView::active3dView();
+	MDagPath camPath;
+	view.getCamera(camPath);
+	MFnCamera activeCamera(camPath);
+
+	//if (camera.name() == activeCamera.name())
+	//{
+	//	MFnTransform transform(camera.parent(0));
+
+	//	callbackIds.append(MNodeMessage::addAttributeChangedCallback(transform.object(), CameraChangedCB));
+	//	callbackIds.append(MNodeMessage::addNameChangedCallback(transform.object(), NameChangedCB));
+
+	//	MVector camTranslations = transform.getTranslation(MSpace::kTransform);
+	//	MVector viewDirection = camera.viewDirection(MSpace::kWorld);
+	//	MVector upDirection = camera.upDirection();
+	//	//MFloatMatrix projectionMatrix(camera.projectionMatrix());
+
+	//	// Send data to shared memory
+	//	localHead = sm.cb->head;
+	//	// Message header
+	//	sm.msgHeader.type = TCameraUpdate;
+	//	sm.msgHeader.padding = slotSize - sm.camDataSize - sm.msgHeaderSize;
+	//	memcpy((char*)sm.buffer + localHead, &sm.msgHeader, sizeof(sm.msgHeaderSize));
+	//	localHead += sm.msgHeaderSize;
+
+	//	// Data
+	//	memcpy((char*)sm.buffer + localHead, &camTranslations, sizeof(MVector));
+	//	localHead += sizeof(MVector);
+	//	memcpy((char*)sm.buffer + localHead, &viewDirection, sizeof(MVector));
+	//	localHead += sizeof(MVector);
+	//	memcpy((char*)sm.buffer + localHead, &upDirection, sizeof(MVector));
+	//	
+	//	// Move header
+	//	sm.cb->head += slotSize;
+	//}
+}
+
+void CameraCreationCB(MObject& object, void* clientData){}
+
+void CameraChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& otherPlug, void* clientData)
+{
+	M3dView view = M3dView::active3dView();
+	MDagPath camPath;
+	view.getCamera(camPath);
+	MFnCamera activeCamera(camPath);
+
+	//MFnCamera camera(plug.child(0));
+	MFnCamera camera(plug.node());
+
+	//if (camera.name() == activeCamera.name())
+	//{
+	//	MFnTransform transform(camera.parent(0));
+
+	//	MVector camTranslations = transform.getTranslation(MSpace::kTransform);
+	//	MVector viewDirection = camera.viewDirection(MSpace::kWorld);
+	//	MVector upDirection = camera.upDirection();
+	//	//MFloatMatrix projectionMatrix(camera.projectionMatrix());
+
+	//	// Send data to shared memory
+	//	localHead = sm.cb->head;
+	//	// Message header
+	//	sm.msgHeader.type = TCameraUpdate;
+	//	sm.msgHeader.padding = slotSize - sm.camDataSize - sm.msgHeaderSize;
+	//	memcpy((char*)sm.buffer + localHead, &sm.msgHeader, sizeof(sm.msgHeaderSize));
+	//	localHead += sm.msgHeaderSize;
+
+	//	// Data
+	//	memcpy((char*)sm.buffer + localHead, &camTranslations, sizeof(MVector));
+	//	localHead += sizeof(MVector);
+	//	memcpy((char*)sm.buffer + localHead, &viewDirection, sizeof(MVector));
+	//	localHead += sizeof(MVector);
+	//	memcpy((char*)sm.buffer + localHead, &upDirection, sizeof(MVector));
+
+	//	// Move header
+	//	sm.cb->head += slotSize;
+
+	//	//// Send data to shared memory
+	//	//int head = sm.msgHeaderSize;
+	//	//sm.msgHeader.type = 2;
+	//	//sm.msgHeader.padding = 0;
+	//	//memcpy((char*)sm.buffer, &sm.msgHeader, sizeof(sm.msgHeaderSize));
+
+	//	//memcpy((char*)sm.buffer + head, &camTranslations, sizeof(MVector));
+	//	//head += sizeof(MVector);
+	//	//memcpy((char*)sm.buffer + head, &viewDirection, sizeof(MVector));
+	//	//head += sizeof(MVector);
+	//	//memcpy((char*)sm.buffer + head, &upDirection, sizeof(MVector));
+	//	//int hej = 0;
+	//}
+}
+
+
+void LightCreationCB(MObject& lightObject, void* clientData)
+{
+	callbackIds.append(MNodeMessage::addAttributeChangedCallback(lightObject, LightChangedCB));
+
+	MFnLight light(lightObject);
+
+	//MMatrix test;
+
+	//light.transformationMatrix();
+
+	MObject dad = light.parent(0);
+
+	MFnTransform lightPoint(dad);
+	callbackIds.append(MNodeMessage::addAttributeChangedCallback(lightPoint.object(), LightChangedCB));
+
+	MColor color;
+	MVector position;
+
+	float r, b, g, a;
+
+	MStatus status;
+	if (dad.hasFn(MFn::kTransform))
+	{
+		position = lightPoint.getTranslation(MSpace::kObject, &status);
+		MGlobal::displayInfo(MString() + "HEJ");
+	}
+	color = light.color();
+	r = color.r;
+	b = color.b;
+	g = color.g;
+	a = color.a;
+
+	MGlobal::displayInfo(MString() + "Color: " + r + " " + b + " " + g + " " + a);
+	MGlobal::displayInfo(MString() + "Position: " + position.x + " " + position.y + " " + position.z);
+}
+
+void LightChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& otherPlug, void* clientData)
+{
+	MFnLight light(plug.node());
+
+	if (plug.partialName() == "cl")
+	{
+		MColor color(light.color());
+		float r, b, g, a;
+
+		r = color.r;
+		b = color.b;
+		g = color.g;
+		a = color.a;
+
+		MGlobal::displayInfo(MString() + "Color: " + r + " " + b + " " + g + " " + a);
+	}
+	else if (msg & MNodeMessage::kAttributeSet)
+	{
+		MFnTransform lightPoint(plug.node());
+
+		MVector position;
+
+		position = lightPoint.getTranslation(MSpace::kObject);
+
+		MGlobal::displayInfo(MString() + "Position: " + position.x + " " + position.y + " " + position.z);
+	}
+}
+
 
 void NameChangedCB(MObject& node, const MString& prevName, void* clientData)
 {
