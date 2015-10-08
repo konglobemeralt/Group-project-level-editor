@@ -29,7 +29,7 @@ public:
 
 	void OpenMemory(size_t size);
 	int ReadMSGHeader();
-	int ReadMemory(unsigned int type);
+	void ReadMemory(unsigned int type);
 	void TempMesh();
 
 	// SHARED MEOMRY
@@ -67,7 +67,7 @@ public:
 	struct MeshData
 	{
 		vector<VertexData> vertexData;
-		int vertexCount;
+		unsigned int vertexCount;
 		XMFLOAT4X4 transform;
 	};
 	vector<MeshData> meshes;
@@ -85,6 +85,7 @@ public:
 	// CAMERA
 	XMFLOAT4X4* view;
 	XMFLOAT4X4* projection;
+	XMFLOAT4X4 projectionTemp;
 	ID3D11Buffer* viewMatrix;
 	ID3D11Buffer* projectionMatrix;
 	D3D11_MAPPED_SUBRESOURCE camMapSub;
@@ -94,7 +95,7 @@ public:
 		double pos[3];
 		double view[3];
 		double up[3];
-	}* cameraData;
+	}*cameraData;
 
 	//LIGHT
 	vector<string> lightNames;

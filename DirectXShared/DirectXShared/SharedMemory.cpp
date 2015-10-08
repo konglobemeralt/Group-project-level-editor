@@ -34,7 +34,7 @@ void SharedMemory::OpenMemory(size_t size)
 		PAGE_READWRITE,
 		(DWORD)0,
 		size,
-		L"Global/CircularBuffer4");
+		L"Global/CircularBuffer5");
 	if (GetLastError() == ERROR_ALREADY_EXISTS)
 		OutputDebugStringA("CircularBuffer allready exist\n");
 
@@ -64,7 +64,7 @@ void SharedMemory::OpenMemory(size_t size)
 		PAGE_READWRITE,
 		(DWORD)0,
 		size,
-		L"Global/MainData4");
+		L"Global/MainData5");
 	if (GetLastError() == ERROR_ALREADY_EXISTS)
 		OutputDebugStringA("MainData allready exist\n");
 
@@ -88,66 +88,68 @@ int SharedMemory::ReadMSGHeader()
 		memcpy(&msgHeader, (char*)buffer + localTail, sizeof(MSGHeader));
 		localTail += sizeof(MSGHeader);
 
-		// Move tail
-		cb->tail += sizeof(MSGHeader);
-		cb->freeMem += sizeof(MSGHeader);
+		//// Move tail
+		//cb->tail += sizeof(MSGHeader);
+		//cb->freeMem += sizeof(MSGHeader);
 
 		return msgHeader.type;
 	}
 	return -1;
 }
 
-int SharedMemory::ReadMemory(unsigned int type)
+void SharedMemory::ReadMemory(unsigned int type)
 {
-	//meshes.push_back(MeshData());
-	//tail = 4;
-
-	// Test mesh
-	//memcpy(&meshes[0].vertexCount, (int*)buffer, sizeof(int));
-	//meshes[0].vertexData.resize(meshes[0].vertexCount);
-	//// Retrieve a cube from maya
-	//for (size_t i = 0; i < meshes[0].vertexCount; i++)
-	//{
-	//	memcpy(&meshes[0].vertexData[i].pos, (char*)buffer + tail, sizeof(XMFLOAT3));
-	//	tail += sizeof(XMFLOAT3);
-	//	memcpy(&meshes[0].vertexData[i].uv, (char*)buffer + tail, sizeof(XMFLOAT2));
-	//	tail += sizeof(XMFLOAT2);
-	//	memcpy(&meshes[0].vertexData[i].normal, (char*)buffer + tail, sizeof(XMFLOAT3));
-	//	tail += sizeof(XMFLOAT3);
-	//}
-
-	localTail = cb->tail;
-
-	if (cb->freeMem < memSize)
+	if (type == TMeshCreate)
 	{
-		if (type == TMeshCreate)
-		{
-			// Read and store whole mesh data
-		}
-		else if (type == TMeshUpdate)
-		{
-			// Read updated data and store vertexbuffer
-		}
-		else if (type == TCameraUpdate)
-		{
-			// Read and store camera
+		// Read and store whole mesh data
 
-			// Data
-			memcpy(&cameraData->pos, (char*)buffer + localTail, sizeof(double) * 3);
-			localTail += sizeof(double) * 3;
-			memcpy(&cameraData->view, (char*)buffer + localTail, sizeof(double) * 3);
-			localTail += sizeof(double) * 3;
-			memcpy(&cameraData->up, (char*)buffer + localTail, sizeof(double) * 3);
+		meshes.push_back(MeshData());
 
-			// Move tail
-			cb->tail += slotSize;
-			cb->freeMem += slotSize;
-
-			return TCameraUpdate;
+		// Size of mesh
+		memcpy(&meshes.back().vertexCount, (char*)buffer + localTail, sizeof(int));
+		localTail += sizeof(int);
+		// Rezise to hold every vertex
+		meshes.back().vertexData.resize(meshes.back().vertexCount);
+		// Vertex data
+		for (size_t i = 0; i < meshes.back().vertexCount; i++)
+		{
+			memcpy(&meshes.back().vertexData[i].pos, (char*)buffer + localTail, sizeof(XMFLOAT3));
+			localTail += sizeof(XMFLOAT3);
+			memcpy(&meshes.back().vertexData[i].uv, (char*)buffer + localTail, sizeof(XMFLOAT2));
+			localTail += sizeof(XMFLOAT2);
+			memcpy(&meshes.back().vertexData[i].normal, (char*)buffer + localTail, sizeof(XMFLOAT3));
+			localTail += sizeof(XMFLOAT3);
 		}
+
+		// Move tail
+		cb->tail += slotSize;
+		cb->freeMem += slotSize;
+		cb->tail += (meshes.back().vertexCount * sizeof(float)* 8) + sizeof(MSGHeader)+msgHeader.padding;
+		cb->freeMem += (meshes.back().vertexCount * sizeof(float)* 8) + sizeof(MSGHeader)+msgHeader.padding;
 	}
+	else if (type == TMeshUpdate)
+	{
+		// Read updated data and store vertexbuffer
+	}
+	else if (type == TCameraUpdate)
+	{
+		// Read and store camera
 
-	return -1;
+		// View matrix
+		memcpy(&cameraData->pos, (char*)buffer + localTail, sizeof(double)* 3);
+		localTail += sizeof(double)* 3;
+		memcpy(&cameraData->view, (char*)buffer + localTail, sizeof(double)* 3);
+		localTail += sizeof(double)* 3;
+		memcpy(&cameraData->up, (char*)buffer + localTail, sizeof(double)* 3);
+		localTail += sizeof(double)* 3;
+
+		// Projection matrix
+		memcpy(&projectionTemp, (char*)buffer + localTail, sizeof(XMFLOAT4X4));
+
+		// Move tail
+		cb->tail += slotSize;
+		cb->freeMem += slotSize;
+	}
 }
 
 void SharedMemory::TempMesh()

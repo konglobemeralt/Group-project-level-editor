@@ -12,9 +12,9 @@ void GetTransformInformation(MFnTransform& transform);
 void TransformCreationCB(MObject& object, void* clientData);
 void TransformChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& otherPlug, void* clientData);
 
-void GetCameraInformation(MFnCamera& camera);
+//void GetCameraInformation(MFnCamera& camera);
 void CameraCreationCB(MObject& object, void* clientData);
-void CameraChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& otherPlug, void* clientData);
+void CameraChanged(MFnTransform& transform, MFnCamera& camera);
 
 void LightCreationCB(MObject& lightObject, void* clientData);
 void LightChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& otherPlug, void* clientData);
@@ -33,6 +33,7 @@ MVector camFix;
 SharedMemory sm;
 unsigned int localHead;
 unsigned int slotSize;
+MStringArray meshNames;
 
 EXPORT MStatus initializePlugin(MObject obj)
 {
@@ -42,7 +43,7 @@ EXPORT MStatus initializePlugin(MObject obj)
 	if (MFAIL(res))
 		CHECK_MSTATUS(res);
 
-	sm.camDataSize = sizeof(MVector) * 3;
+	sm.camDataSize = sizeof(MVector)* 3;
 	localHead = 0;
 	slotSize = 256;
 	sm.cbSize = 20;
@@ -103,8 +104,7 @@ void GetSceneData()
 	while (!itCamera.isDone())
 	{
 		MFnCamera camera(itCamera.item());
-		GetCameraInformation(camera);
-		callbackIds.append(MNodeMessage::addAttributeChangedCallback(camera.object(), CameraChangedCB));
+		//GetCameraInformation(camera);
 		callbackIds.append(MNodeMessage::addNameChangedCallback(camera.object(), NameChangedCB));
 		itCamera.next();
 	}
@@ -114,35 +114,127 @@ void GetSceneData()
 void GetMeshInformation(MFnMesh& mesh)
 {
 	MGlobal::displayInfo("Mesh: " + mesh.fullPathName() + " loaded!");
+	meshNames.append(mesh.name());
 
 	// Vertex position
 	MIntArray vtxCount;
 	MIntArray vtxArray;
 	mesh.getVertices(vtxCount, vtxArray);
-	MGlobal::displayInfo(MString("Number of vertices: ") + vtxArray.length());
-	MPointArray vts;
-	mesh.getPoints(vts);
-	for (size_t i = 0; i < vtxArray.length(); i++)
+
+	MIntArray vertexIDList;
+	MVectorArray vertexList;
+	size_t id = 0;
+	int vertexPoint[3];
+	MIntArray triangleCounts;
+	MIntArray triangleVertices;
+	MPoint point;
+	float2 uvPoint;
+	MFloatArray uList;
+	MFloatArray vList;
+	MVector normal;
+	MVectorArray normalList;
+	mesh.getTriangles(triangleCounts, triangleVertices);
+
+	for (size_t i = 0; i < mesh.numPolygons(); i++)
 	{
-		MGlobal::displayInfo(MString("V: ") + vtxArray[i] + ": " + vts[vtxArray[i]].x + " " + vts[vtxArray[i]].y + " " + vts[vtxArray[i]].z);
+		for (size_t j = 0; j < triangleCounts[i]; j++)
+		{
+			mesh.getPolygonTriangleVertices(i, j, vertexPoint);
+			vertexIDList.append(vertexPoint[0]);
+			vertexIDList.append(vertexPoint[1]);
+			vertexIDList.append(vertexPoint[2]);
+
+			// Vertex 0 in triangle:
+			mesh.getPoint(vertexPoint[0], point);
+			vertexList.append(MVector());
+			vertexList[id].x = point.x;
+			vertexList[id].y = point.y;
+			vertexList[id].z = point.z;
+
+			// UV 0 in triangle:
+			mesh.getUVAtPoint(point, uvPoint);
+			uList.append(uvPoint[0]);
+			vList.append(1 - uvPoint[1]);
+
+			// Vertex 1 in triangle:
+			mesh.getPoint(vertexPoint[1], point);
+			vertexList.append(MVector());
+			vertexList[id + 1].x = point.x;
+			vertexList[id + 1].y = point.y;
+			vertexList[id + 1].z = point.z;
+
+			// UV 1 in triangle:
+			mesh.getUVAtPoint(point, uvPoint);
+			uList.append(uvPoint[0]);
+			vList.append(1 - uvPoint[1]);
+
+			// Vertex 2 in triangle:
+			mesh.getPoint(vertexPoint[2], point);
+			vertexList.append(MVector());
+			vertexList[id + 2].x = point.x;
+			vertexList[id + 2].y = point.y;
+			vertexList[id + 2].z = point.z;
+
+			// UV 2 in triangle:
+			mesh.getUVAtPoint(point, uvPoint);
+			uList.append(uvPoint[0]);
+			vList.append(1 - uvPoint[1]);
+
+			// Normal:
+			mesh.getVertexNormal(vertexIDList[0], true, normal);
+			normalList.append(normal);
+			mesh.getVertexNormal(vertexIDList[1], true, normal);
+			normalList.append(normal);
+			mesh.getVertexNormal(vertexIDList[2], true, normal);
+			normalList.append(normal);
+
+			id += 3;
+		}
 	}
 
-	// UV:s
-	MFloatArray u, v;
-	mesh.getUVs(u, v);
-	MGlobal::displayInfo(MString("Number of uv: ") + u.length());
-	for (size_t i = 0; i < u.length(); i++)
+	sm.vertexData.resize(vertexList.length());
+	if (vertexIDList.length() > 0)
 	{
-		MGlobal::displayInfo(MString("UV ") + i + ": " + u[i] + " " + v[i]);
+		for (size_t i = 0; i < vertexList.length(); i++)
+		{
+			MGlobal::displayInfo(MString("V: ") + vertexIDList[i] + ": " + vertexList[i].x + " " + vertexList[i].y + " " + vertexList[i].z + " " + i);
+			MGlobal::displayInfo(MString("UV ") + i + ": " + uList[i] + " " + vList[i]);
+			MGlobal::displayInfo(MString("N ") + i + ": " + normalList[i].x + " " + normalList[i].y + " " + normalList[i].z);
+			sm.vertexData[i].pos = XMFLOAT3(vertexList[i].x, vertexList[i].y, vertexList[i].z);
+			sm.vertexData[i].uv = XMFLOAT2(uList[i], vList[i]);
+			sm.vertexData[i].pos = XMFLOAT3(vertexList[i].x, vertexList[i].y, vertexList[i].z);
+			sm.vertexData[i].normal = XMFLOAT3(normalList[i].x, normalList[i].y, normalList[i].z);
+		}
 	}
 
-	// Normals
-	MFloatVectorArray nArray;
-	mesh.getNormals(nArray);
-	MGlobal::displayInfo(MString("Number of normals: ") + nArray.length());
-	for (size_t i = 0; i < nArray.length(); i++)
+	// Send data to shared memory
+	unsigned int meshSize = vertexList.length();
+	if (meshSize > 0)
 	{
-		MGlobal::displayInfo(MString("N ") + i + ": " + nArray[i][0] + " " + nArray[i][1] + " " + nArray[i][2]);
+		localHead = sm.cb->head;
+		// Message header
+		sm.msgHeader.type = TMeshCreate;
+		sm.msgHeader.padding = ((meshSize * sizeof(float)* 8) - sm.msgHeaderSize) % slotSize;
+		memcpy((char*)sm.buffer + localHead, &sm.msgHeader, sm.msgHeaderSize);
+		localHead += sm.msgHeaderSize;
+
+		// Size of mesh
+		memcpy((char*)sm.buffer + localHead, &meshSize, sizeof(int));
+		localHead += sizeof(int);
+		// Vertex data
+		for (size_t i = 0; i < vertexList.length(); i++)
+		{
+			memcpy((char*)sm.buffer + localHead, &sm.vertexData[i].pos, sizeof(XMFLOAT3));
+			localHead += sizeof(XMFLOAT3);
+			memcpy((char*)sm.buffer + localHead, &sm.vertexData[i].uv, sizeof(XMFLOAT2));
+			localHead += sizeof(XMFLOAT2);
+			memcpy((char*)sm.buffer + localHead, &sm.vertexData[i].normal, sizeof(XMFLOAT3));
+			localHead += sizeof(XMFLOAT3);
+		}
+
+		// Move header
+		sm.cb->head += (meshSize * sizeof(float)* 8) + sm.msgHeaderSize + sm.msgHeader.padding;
+		sm.cb->freeMem -= (meshSize * sizeof(float)* 8) + sm.msgHeaderSize + sm.msgHeader.padding;
 	}
 }
 
@@ -167,8 +259,6 @@ void MeshChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& other
 		MIntArray vtxCount;
 		MIntArray vtxArray;
 		mesh.getVertices(vtxCount, vtxArray);
-
-
 
 		MIntArray vertexIDList;
 		MVectorArray vertexList;
@@ -203,7 +293,7 @@ void MeshChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& other
 				// UV 0 in triangle:
 				mesh.getUVAtPoint(point, uvPoint);
 				uList.append(uvPoint[0]);
-				vList.append(uvPoint[1]);
+				vList.append(1 - uvPoint[1]);
 
 				// Vertex 1 in triangle:
 				mesh.getPoint(vertexPoint[1], point);
@@ -215,7 +305,7 @@ void MeshChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& other
 				// UV 1 in triangle:
 				mesh.getUVAtPoint(point, uvPoint);
 				uList.append(uvPoint[0]);
-				vList.append(uvPoint[1]);
+				vList.append(1 - uvPoint[1]);
 
 				// Vertex 2 in triangle:
 				mesh.getPoint(vertexPoint[2], point);
@@ -227,7 +317,7 @@ void MeshChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& other
 				// UV 2 in triangle:
 				mesh.getUVAtPoint(point, uvPoint);
 				uList.append(uvPoint[0]);
-				vList.append(uvPoint[1]);
+				vList.append(1 - uvPoint[1]);
 
 				// Normal:
 				mesh.getVertexNormal(vertexIDList[0], true, normal);
@@ -244,6 +334,7 @@ void MeshChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& other
 		sm.vertexData.resize(vertexList.length());
 		if (vertexIDList.length() > 0)
 		{
+			meshNames.append(mesh.name());
 			for (size_t i = 0; i < vertexList.length(); i++)
 			{
 				MGlobal::displayInfo(MString("V: ") + vertexIDList[i] + ": " + vertexList[i].x + " " + vertexList[i].y + " " + vertexList[i].z + " " + i);
@@ -257,17 +348,33 @@ void MeshChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& other
 		}
 
 		// Send data to shared memory
-		int size = vertexList.length();
-		int head = 4;
-		memcpy((char*)sm.buffer, &size, sizeof(int));
-		for (size_t i = 0; i < vertexList.length(); i++)
+		unsigned int meshSize = vertexList.length();
+		if (meshSize > 0)
 		{
-			memcpy((char*)sm.buffer + head, &sm.vertexData[i].pos, sizeof(XMFLOAT3));
-			head += sizeof(XMFLOAT3);
-			memcpy((char*)sm.buffer + head, &sm.vertexData[i].uv, sizeof(XMFLOAT2));
-			head += sizeof(XMFLOAT2);
-			memcpy((char*)sm.buffer + head, &sm.vertexData[i].normal, sizeof(XMFLOAT3));
-			head += sizeof(XMFLOAT3);
+			localHead = sm.cb->head;
+			// Message header
+			sm.msgHeader.type = TMeshCreate;
+			sm.msgHeader.padding = ((meshSize * sizeof(float)* 8) - sm.msgHeaderSize) % slotSize;
+			memcpy((char*)sm.buffer + localHead, &sm.msgHeader, sm.msgHeaderSize);
+			localHead += sm.msgHeaderSize;
+
+			// Size of mesh
+			memcpy((char*)sm.buffer + localHead, &meshSize, sizeof(int));
+			localHead += sizeof(int);
+			// Vertex data
+			for (size_t i = 0; i < vertexList.length(); i++)
+			{
+				memcpy((char*)sm.buffer + localHead, &sm.vertexData[i].pos, sizeof(XMFLOAT3));
+				localHead += sizeof(XMFLOAT3);
+				memcpy((char*)sm.buffer + localHead, &sm.vertexData[i].uv, sizeof(XMFLOAT2));
+				localHead += sizeof(XMFLOAT2);
+				memcpy((char*)sm.buffer + localHead, &sm.vertexData[i].normal, sizeof(XMFLOAT3));
+				localHead += sizeof(XMFLOAT3);
+			}
+
+			// Move header
+			sm.cb->head += (meshSize * sizeof(float)* 8) + sm.msgHeaderSize + sm.msgHeader.padding;
+			sm.cb->freeMem -= (meshSize * sizeof(float)* 8) + sm.msgHeaderSize + sm.msgHeader.padding;
 		}
 	}
 
@@ -372,51 +479,14 @@ void TransformChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& 
 	M3dView view = M3dView::active3dView();
 	MDagPath camPath;
 	view.getCamera(camPath);
-	MFnCamera activeCamera(camPath);
+	MFnCamera camera(camPath);
 
 	if (msg & MNodeMessage::kAttributeSet)
 	{
 		MFnTransform transform(plug.node());
 
-		if (transform.isParentOf(activeCamera.object()))
-		{
-			MFnCamera camera(transform.child(0));
-			MVector camTranslations = transform.getTranslation(MSpace::kTransform);
-			MVector viewDirection = activeCamera.viewDirection(MSpace::kWorld);
-			MVector upDirection = activeCamera.upDirection(MSpace::kWorld);
-			//MFloatMatrix projectionMatrix(camera.projectionMatrix());
-
-			MGlobal::displayInfo(MString() + "Test: " + upDirection[0] + " " + upDirection[1] + " " + upDirection[2] + " ");
-
-			viewDirection += camTranslations;
-			float x = camFix.x - camTranslations.x;
-			float y = camFix.y - camTranslations.y;
-			float z = camFix.z - camTranslations.z;
-
-			if (x < 0.1 && y < 0.1, z < 0.1)
-			{
-				camFix = camTranslations;
-
-				// Send data to shared memory
-				localHead = sm.cb->head;
-				// Message header
-				sm.msgHeader.type = TCameraUpdate;
-				sm.msgHeader.padding = slotSize - sm.camDataSize - sm.msgHeaderSize;
-				memcpy((char*)sm.buffer + localHead, &sm.msgHeader, sizeof(sm.msgHeaderSize));
-				localHead += sm.msgHeaderSize;
-
-				// Data
-				memcpy((char*)sm.buffer + localHead, &camTranslations, sizeof(MVector));
-				localHead += sizeof(MVector);
-				memcpy((char*)sm.buffer + localHead, &viewDirection, sizeof(MVector));
-				localHead += sizeof(MVector);
-				memcpy((char*)sm.buffer + localHead, &upDirection, sizeof(MVector));
-
-				// Move header
-				sm.cb->head += slotSize;
-				sm.cb->freeMem -= slotSize;
-			}
-		}
+		if (transform.isParentOf(camera.object()))
+			CameraChanged(transform, camera);
 		else
 		{
 			MStatus res;
@@ -451,106 +521,142 @@ void TransformChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& 
 			//MGlobal::displayInfo(MString("Translate: ") + translation.x + " " + translation.y + " " + translation.z);
 			//MGlobal::displayInfo(MString("Rotation:  ") + rx + " " + ry + " " + rz);
 			//MGlobal::displayInfo(MString("Scale:     ") + scale[0] + " " + scale[1] + " " + scale[2]);
+
+			unsigned int meshIndex;
+			for (size_t i = 0; i < meshNames.length(); i++)
+			{
+				MFnMesh mesh(transform.child(0));
+				if (meshNames[i] == mesh.name())
+					meshIndex = i;
+			}
+
+			//// Send data to shared memory
+			//unsigned int meshSize = vertexList.length();
+			//if (meshSize > 0)
+			//{
+			//	localHead = sm.cb->head;
+			//	// Message header
+			//	sm.msgHeader.type = TMeshCreate;
+			//	sm.msgHeader.padding = ((meshSize * sizeof(float)* 8) - sm.msgHeaderSize) % slotSize;
+			//	memcpy((char*)sm.buffer + localHead, &sm.msgHeader, sm.msgHeaderSize);
+			//	localHead += sm.msgHeaderSize;
+
+			//	// Size of mesh
+			//	memcpy((char*)sm.buffer + localHead, &meshSize, sizeof(int));
+			//	localHead += sizeof(int);
+			//	// Vertex data
+			//	for (size_t i = 0; i < vertexList.length(); i++)
+			//	{
+			//		memcpy((char*)sm.buffer + localHead, &sm.vertexData[i].pos, sizeof(XMFLOAT3));
+			//		localHead += sizeof(XMFLOAT3);
+			//		memcpy((char*)sm.buffer + localHead, &sm.vertexData[i].uv, sizeof(XMFLOAT2));
+			//		localHead += sizeof(XMFLOAT2);
+			//		memcpy((char*)sm.buffer + localHead, &sm.vertexData[i].normal, sizeof(XMFLOAT3));
+			//		localHead += sizeof(XMFLOAT3);
+			//	}
+
+			//	// Move header
+			//	sm.cb->head += (meshSize * sizeof(float)* 8) + sm.msgHeaderSize + sm.msgHeader.padding;
+			//	sm.cb->freeMem -= (meshSize * sizeof(float)* 8) + sm.msgHeaderSize + sm.msgHeader.padding;
+			//}
 		}
 	}
 }
 
-
-void GetCameraInformation(MFnCamera& camera)
-{
-	M3dView view = M3dView::active3dView();
-	MDagPath camPath;
-	view.getCamera(camPath);
-	MFnCamera activeCamera(camPath);
-
-	if (camera.name() == activeCamera.name())
-	{
-		MFnTransform transform(camera.parent(0));
-
-		//callbackIds.append(MNodeMessage::addAttributeChangedCallback(transform.object(), CameraChangedCB));
-		callbackIds.append(MNodeMessage::addNameChangedCallback(transform.object(), NameChangedCB));
-
-		MVector camTranslations = transform.getTranslation(MSpace::kTransform);
-		MVector viewDirection = activeCamera.viewDirection(MSpace::kWorld);
-		MVector upDirection = activeCamera.upDirection(MSpace::kWorld);
-		//MFloatMatrix projectionMatrix(camera.projectionMatrix());
-
-		viewDirection += camTranslations;
-
-		// Send data to shared memory
-		localHead = sm.cb->head;
-		// Message header
-		sm.msgHeader.type = TCameraUpdate;
-		sm.msgHeader.padding = slotSize - sm.camDataSize - sm.msgHeaderSize;
-		memcpy((char*)sm.buffer + localHead, &sm.msgHeader, sm.msgHeaderSize);
-		localHead += sm.msgHeaderSize;
-
-		// Data
-		memcpy((char*)sm.buffer + localHead, &camTranslations, sizeof(MVector));
-		localHead += sizeof(MVector);
-		memcpy((char*)sm.buffer + localHead, &viewDirection, sizeof(MVector));
-		localHead += sizeof(MVector);
-		memcpy((char*)sm.buffer + localHead, &upDirection, sizeof(MVector));
-		
-		// Move header
-		sm.cb->head += slotSize;
-		sm.cb->freeMem -= slotSize;
-	}
-}
+//
+//void GetCameraInformation(MFnCamera& camera)
+//{
+//	M3dView view = M3dView::active3dView();
+//	MDagPath camPath;
+//	view.getCamera(camPath);
+//	MFnCamera activeCamera(camPath);
+//
+//	if (camera.name() == activeCamera.name())
+//	{
+//		MFnTransform transform(camera.parent(0));
+//
+//		callbackIds.append(MNodeMessage::addNameChangedCallback(transform.object(), NameChangedCB));
+//
+//		MVector camTranslations = transform.getTranslation(MSpace::kTransform);
+//		MVector viewDirection = activeCamera.viewDirection(MSpace::kWorld);
+//		MVector upDirection = activeCamera.upDirection(MSpace::kWorld);
+//		//MFloatMatrix projectionMatrix(camera.projectionMatrix());
+//
+//		viewDirection += camTranslations;
+//
+//		// Send data to shared memory
+//		localHead = sm.cb->head;
+//		// Message header
+//		sm.msgHeader.type = TCameraUpdate;
+//		sm.msgHeader.padding = slotSize - sm.camDataSize - sm.msgHeaderSize;
+//		memcpy((char*)sm.buffer + localHead, &sm.msgHeader, sm.msgHeaderSize);
+//		localHead += sm.msgHeaderSize;
+//
+//		// Data
+//		memcpy((char*)sm.buffer + localHead, &camTranslations, sizeof(MVector));
+//		localHead += sizeof(MVector);
+//		memcpy((char*)sm.buffer + localHead, &viewDirection, sizeof(MVector));
+//		localHead += sizeof(MVector);
+//		memcpy((char*)sm.buffer + localHead, &upDirection, sizeof(MVector));
+//		
+//		// Move header
+//		sm.cb->head += slotSize;
+//		sm.cb->freeMem -= slotSize;
+//	}
+//}
 
 void CameraCreationCB(MObject& object, void* clientData){}
 
-void CameraChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& otherPlug, void* clientData)
+void CameraChanged(MFnTransform& transform, MFnCamera& camera)
 {
-	M3dView view = M3dView::active3dView();
-	MDagPath camPath;
-	view.getCamera(camPath);
-	MFnCamera activeCamera(camPath);
+	//MFnCamera camera(transform.child(0));
+	MVector camTranslations = transform.getTranslation(MSpace::kTransform);
+	//MPoint eye = camera.eyePoint(MSpace::kWorld);
+	//MVector camTranslations(eye);
+	MVector viewDirection = camera.viewDirection(MSpace::kWorld);
+	MVector upDirection = camera.upDirection(MSpace::kWorld);
+	//MFloatMatrix projection = camera.projectionMatrix();
+	XMFLOAT4X4 projection;
+	XMStoreFloat4x4(&projection, XMMatrixTranspose(XMMatrixPerspectiveFovLH(
+		camera.verticalFieldOfView(),
+		camera.aspectRatio(),
+		camera.nearClippingPlane(),
+		camera.farClippingPlane())));
 
-	MFnCamera camera(plug.child(0));
-	//MFnCamera camera(plug.node());
-	//MGlobal::displayInfo(camera.name());
+	MGlobal::displayInfo(MString() + "Test: " + camTranslations[0] + " " + camTranslations[1] + " " + camTranslations[2] + " ");
 
-	if (camera.name() == activeCamera.name())
-	{
-		MFnTransform transform(camera.parent(0));
+	viewDirection += camTranslations;
+	float x = fabs(camFix.x) - fabs(camTranslations.x);
+	float y = fabs(camFix.y) - fabs(camTranslations.y);
+	float z = fabs(camFix.z) - fabs(camTranslations.z);
 
-		MVector camTranslations = transform.getTranslation(MSpace::kTransform);
-		MVector viewDirection = activeCamera.viewDirection(MSpace::kTransform);
-		MVector upDirection = activeCamera.upDirection(MSpace::kObject);
-		//MFloatMatrix projectionMatrix(camera.projectionMatrix());
+	//if (x < 0.01 && y < 0.01, z < 0.01)
+	//{
+	camFix = camTranslations;
 
-		// Send data to shared memory
-		localHead = sm.cb->head;
-		// Message header
-		sm.msgHeader.type = TCameraUpdate;
-		sm.msgHeader.padding = slotSize - sm.camDataSize - sm.msgHeaderSize;
-		memcpy((char*)sm.buffer + localHead, &sm.msgHeader, sizeof(sm.msgHeaderSize));
-		localHead += sm.msgHeaderSize;
+	// Send data to shared memory
+	localHead = sm.cb->head;
+	// Message header
+	sm.msgHeader.type = TCameraUpdate;
+	sm.msgHeader.padding = slotSize - sm.camDataSize - sm.msgHeaderSize;
+	memcpy((char*)sm.buffer + localHead, &sm.msgHeader, sizeof(sm.msgHeaderSize));
+	localHead += sm.msgHeaderSize;
 
-		// Data
-		memcpy((char*)sm.buffer + localHead, &camTranslations, sizeof(MVector));
-		localHead += sizeof(MVector);
-		memcpy((char*)sm.buffer + localHead, &viewDirection, sizeof(MVector));
-		localHead += sizeof(MVector);
-		memcpy((char*)sm.buffer + localHead, &upDirection, sizeof(MVector));
+	// View matrix
+	memcpy((char*)sm.buffer + localHead, &camTranslations, sizeof(MVector));
+	localHead += sizeof(MVector);
+	memcpy((char*)sm.buffer + localHead, &viewDirection, sizeof(MVector));
+	localHead += sizeof(MVector);
+	memcpy((char*)sm.buffer + localHead, &upDirection, sizeof(MVector));
+	localHead += sizeof(MVector);
 
-		// Move header
-		sm.cb->head += slotSize;
+	// Projection matrix
+	memcpy((char*)sm.buffer + localHead, &projection, sizeof(XMFLOAT4X4));
 
-		//// Send data to shared memory
-		//int head = sm.msgHeaderSize;
-		//sm.msgHeader.type = 2;
-		//sm.msgHeader.padding = 0;
-		//memcpy((char*)sm.buffer, &sm.msgHeader, sizeof(sm.msgHeaderSize));
-
-		//memcpy((char*)sm.buffer + head, &camTranslations, sizeof(MVector));
-		//head += sizeof(MVector);
-		//memcpy((char*)sm.buffer + head, &viewDirection, sizeof(MVector));
-		//head += sizeof(MVector);
-		//memcpy((char*)sm.buffer + head, &upDirection, sizeof(MVector));
-		//int hej = 0;
-	}
+	// Move header
+	sm.cb->head += slotSize;
+	sm.cb->freeMem -= slotSize;
+	//}
 }
 
 

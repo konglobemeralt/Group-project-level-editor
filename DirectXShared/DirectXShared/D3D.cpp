@@ -19,7 +19,7 @@ D3D::D3D(HWND win)
 	scd.SampleDesc.Quality = 0;
 	scd.Windowed = TRUE;                                    // windowed/full-screen mode
 
-															// create a device, device context and swap chain using the information in the scd struct
+	// create a device, device context and swap chain using the information in the scd struct
 	HRESULT hr = D3D11CreateDeviceAndSwapChain(NULL,
 		D3D_DRIVER_TYPE_HARDWARE,
 		NULL,
@@ -84,8 +84,16 @@ void D3D::Update()
 {
 	smType = ReadMSGHeader();
 
-	if (smType == TCameraUpdate)
+	if (smType == TMeshCreate)
 	{
+		ReadMemory(smType);
+		meshesBuffer.resize(meshesBuffer.size() + 1);
+		meshesBuffer.back() = CreateMesh(vertexSize * meshes.back().vertexCount, meshes.back().vertexData.data(), meshes.back().vertexCount);
+	}
+
+	else if (smType == TCameraUpdate)
+	{
+		// View
 		devcon->Map(viewMatrix, 0, D3D11_MAP_WRITE_DISCARD, 0, &camMapSub);
 		view = (XMFLOAT4X4*)camMapSub.pData;
 		ReadMemory(smType);
@@ -96,8 +104,16 @@ void D3D::Update()
 			XMVectorSet(cameraData->up[0], cameraData->up[1], cameraData->up[2], 0.0f))));
 
 		devcon->Unmap(viewMatrix, 0);
-			
-		//viewMatrix = CreateConstantBuffer(sizeof(XMFLOAT4X4), view);
+
+		//// Projection
+		//devcon->Map(projectionMatrix, 0, D3D11_MAP_WRITE_DISCARD, 0, &camMapSub);
+		//projection = (XMFLOAT4X4*)camMapSub.pData;
+
+		//projection = &projectionTemp;
+
+		//devcon->Unmap(projectionMatrix, 0);
+
+		projectionMatrix = CreateConstantBuffer(sizeof(XMFLOAT4X4), &projectionTemp);
 	}
 }
 
@@ -127,11 +143,6 @@ void D3D::Render()
 void D3D::Create()
 {
 	// CAMERA
-	//smIndex = sm.ReadMemory();
-	/*XMStoreFloat4x4(&sm.view, XMMatrixTranspose(XMMatrixLookAtLH(
-		XMVectorSet(sm.cameraData.pos[0], sm.cameraData.pos[1], -sm.cameraData.pos[2], 0.0f),
-		XMVectorSet(sm.cameraData.view[0], sm.cameraData.view[1], -sm.cameraData.view[2], 0.0f),
-		XMVectorSet(sm.cameraData.up[0], sm.cameraData.up[1], sm.cameraData.up[2], 0.0f))));*/
 	XMStoreFloat4x4(view, XMMatrixTranspose(XMMatrixLookAtLH(XMVectorSet(0.0f, 2.0f, -2.0f, 0.0f), XMVectorSet(0.0f, -1.0f, 1.0f, 0.0f), XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f))));
 	XMStoreFloat4x4(projection, XMMatrixTranspose(XMMatrixPerspectiveFovLH(XM_PI * 0.45f, 640.0f / 480.0f, 0.1f, 500.0f)));
 	viewMatrix = CreateConstantBuffer(sizeof(XMFLOAT4X4), view);
@@ -141,10 +152,10 @@ void D3D::Create()
 	worldTempBuffer = CreateConstantBuffer(sizeof(XMFLOAT4X4), &worldTemp);
 
 	// MESH
-	TempMesh();
-	meshesBuffer.resize(1);
+	//TempMesh();
+	//meshesBuffer.resize(1);
 	//smIndex = sm.ReadMemory();
-	meshesBuffer[0] = CreateMesh(vertexSize * meshes[0].vertexCount, meshes[0].vertexData.data(), meshes[0].vertexCount);
+	//meshesBuffer[0] = CreateMesh(vertexSize * meshes[0].vertexCount, meshes[0].vertexData.data(), meshes[0].vertexCount);
 	CreateTexture();
 }
 

@@ -22,7 +22,6 @@ public:
 
 	char* OpenMemory(size_t size);
 	char* CloseMemory();
-	void SetVertex(XMFLOAT3 pos);
 
 	HANDLE fmCB;
 	HANDLE fmMain;

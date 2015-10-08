@@ -15,7 +15,7 @@ char* SharedMemory::OpenMemory(size_t size)
 		PAGE_READWRITE,
 		(DWORD)0,
 		sizeof(CircBuffer),
-		L"Global/CircularBuffer4");
+		L"Global/CircularBuffer5");
 	if (GetLastError() == ERROR_ALREADY_EXISTS)
 		return "CircularBuffer allready exist\n";
 
@@ -45,7 +45,7 @@ char* SharedMemory::OpenMemory(size_t size)
 		PAGE_READWRITE,
 		(DWORD)0,
 		size,
-		L"Global/MainData4");
+		L"Global/MainData5");
 	if (GetLastError() == ERROR_ALREADY_EXISTS)
 		return "MainData allready exist\n";
 
@@ -77,9 +77,4 @@ char* SharedMemory::CloseMemory()
 		status = "Closed all maps!";
 
 	return status;
-}
-
-void SharedMemory::SetVertex(XMFLOAT3 pos)
-{
-
 }
