@@ -87,8 +87,8 @@ void D3D::Update()
 	if (smType == TMeshCreate)
 	{
 		ReadMemory(smType);
-		meshesBuffer.resize(meshesBuffer.size() + 1);
-		meshesBuffer.back() = CreateMesh(vertexSize * meshes.back().vertexCount, meshes.back().vertexData.data(), meshes.back().vertexCount);
+		meshes.back().meshesBuffer = CreateMesh(vertexSize * meshes.back().vertexCount, meshes.back().vertexData.data(), meshes.back().vertexCount);
+		meshes.back().transformBuffer = CreateConstantBuffer(sizeof(XMFLOAT4X4), meshes.back().transform);
 	}
 
 	else if (smType == TCameraUpdate)
@@ -113,7 +113,23 @@ void D3D::Update()
 
 		//devcon->Unmap(projectionMatrix, 0);
 
-		projectionMatrix = CreateConstantBuffer(sizeof(XMFLOAT4X4), &projectionTemp);
+		//projectionMatrix = CreateConstantBuffer(sizeof(XMFLOAT4X4), &projectionTemp);
+	}
+	else if (smType == TtransformUpdate)
+	{
+		// View
+		ReadMemory(smType);
+		devcon->Map(meshes[localMesh].transformBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &camMapSub);
+		meshes[localMesh].transform = (XMFLOAT4X4*)camMapSub.pData;
+
+		memcpy(meshes[localMesh].transform, (char*)buffer + localTail, sizeof(XMFLOAT4X4));
+		localTail += sizeof(XMFLOAT4X4);
+
+		// Move tail
+		cb->tail += slotSize;
+		cb->freeMem += slotSize;
+
+		devcon->Unmap(meshes[localMesh].transformBuffer, 0);
 	}
 }
 
@@ -124,17 +140,18 @@ void D3D::Render()
 	devcon->ClearRenderTargetView(backbuffer, clearColor);
 	devcon->ClearDepthStencilView(depthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
 	devcon->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	devcon->VSSetConstantBuffers(0, 1, &worldTempBuffer);
+	//devcon->VSSetConstantBuffers(0, 1, &worldTempBuffer);
 	devcon->VSSetConstantBuffers(1, 1, &viewMatrix);
 	devcon->VSSetConstantBuffers(2, 1, &projectionMatrix);
 	devcon->IASetInputLayout(inputLayout);
 	devcon->VSSetShader(vertexShader, NULL, 0);
 	devcon->PSSetShader(pixelShader, NULL, 0);
 
-	for (size_t i = 0; i < meshesBuffer.size(); i++)
+	for (size_t i = 0; i < meshes.size(); i++)
 	{
+		devcon->VSSetConstantBuffers(0, 1, &meshes[i].transformBuffer);
 		devcon->PSSetShaderResources(0, 1, &meshTextures[i]);
-		devcon->IASetVertexBuffers(0, 1, &meshesBuffer[i], &vertexSize, &offset);
+		devcon->IASetVertexBuffers(0, 1, &meshes[i].meshesBuffer, &vertexSize, &offset);
 		devcon->Draw(meshes[0].vertexCount, 0);
 	}
 	swapChain->Present(0, 0);

@@ -34,7 +34,7 @@ void SharedMemory::OpenMemory(size_t size)
 		PAGE_READWRITE,
 		(DWORD)0,
 		size,
-		L"Global/CircularBuffer5");
+		L"Global/CircularBuffer");
 	if (GetLastError() == ERROR_ALREADY_EXISTS)
 		OutputDebugStringA("CircularBuffer allready exist\n");
 
@@ -64,7 +64,7 @@ void SharedMemory::OpenMemory(size_t size)
 		PAGE_READWRITE,
 		(DWORD)0,
 		size,
-		L"Global/MainData5");
+		L"Global/MainData");
 	if (GetLastError() == ERROR_ALREADY_EXISTS)
 		OutputDebugStringA("MainData allready exist\n");
 
@@ -104,6 +104,7 @@ void SharedMemory::ReadMemory(unsigned int type)
 		// Read and store whole mesh data
 
 		meshes.push_back(MeshData());
+		meshes.back().transform = new XMFLOAT4X4();
 
 		// Size of mesh
 		memcpy(&meshes.back().vertexCount, (char*)buffer + localTail, sizeof(int));
@@ -121,11 +122,13 @@ void SharedMemory::ReadMemory(unsigned int type)
 			localTail += sizeof(XMFLOAT3);
 		}
 
+		// Matrix data
+		memcpy(meshes.back().transform, (char*)buffer + localTail, sizeof(XMFLOAT4X4));
+		localTail += sizeof(XMFLOAT4X4);
+
 		// Move tail
-		cb->tail += slotSize;
-		cb->freeMem += slotSize;
-		cb->tail += (meshes.back().vertexCount * sizeof(float)* 8) + sizeof(MSGHeader)+msgHeader.padding;
-		cb->freeMem += (meshes.back().vertexCount * sizeof(float)* 8) + sizeof(MSGHeader)+msgHeader.padding;
+		cb->tail += (meshes.back().vertexCount * sizeof(float)* 8) + sizeof(MSGHeader)+msgHeader.padding + sizeof(XMFLOAT4X4) + sizeof(int);
+		cb->freeMem += (meshes.back().vertexCount * sizeof(float)* 8) + sizeof(MSGHeader)+msgHeader.padding + sizeof(XMFLOAT4X4) +sizeof(int);
 	}
 	else if (type == TMeshUpdate)
 	{
@@ -149,6 +152,11 @@ void SharedMemory::ReadMemory(unsigned int type)
 		// Move tail
 		cb->tail += slotSize;
 		cb->freeMem += slotSize;
+	}
+	else if (type == TtransformUpdate)
+	{
+		memcpy(&localMesh, (char*)buffer + localTail, sizeof(int));
+		localTail += sizeof(int);
 	}
 }
 

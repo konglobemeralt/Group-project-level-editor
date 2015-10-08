@@ -15,7 +15,7 @@ char* SharedMemory::OpenMemory(size_t size)
 		PAGE_READWRITE,
 		(DWORD)0,
 		sizeof(CircBuffer),
-		L"Global/CircularBuffer5");
+		L"Global/CircularBuffer");
 	if (GetLastError() == ERROR_ALREADY_EXISTS)
 		return "CircularBuffer allready exist\n";
 
@@ -45,7 +45,7 @@ char* SharedMemory::OpenMemory(size_t size)
 		PAGE_READWRITE,
 		(DWORD)0,
 		size,
-		L"Global/MainData5");
+		L"Global/MainData");
 	if (GetLastError() == ERROR_ALREADY_EXISTS)
 		return "MainData allready exist\n";
 

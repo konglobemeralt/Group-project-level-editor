@@ -68,11 +68,13 @@ public:
 	{
 		vector<VertexData> vertexData;
 		unsigned int vertexCount;
-		XMFLOAT4X4 transform;
+		XMFLOAT4X4* transform;
+		ID3D11Buffer* meshesBuffer;
+		ID3D11Buffer* transformBuffer;
 	};
 	vector<MeshData> meshes;
-	vector<ID3D11Buffer*> meshesBuffer;
 	vector<string> meshNames;
+	unsigned int localMesh;
 
 	// TEXTURES
 	vector<ID3D11ShaderResourceView*> meshTextures;
