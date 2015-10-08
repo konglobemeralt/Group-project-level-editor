@@ -127,8 +127,8 @@ void SharedMemory::ReadMemory(unsigned int type)
 		localTail += sizeof(XMFLOAT4X4);
 
 		// Move tail
-		cb->tail += (meshes.back().vertexCount * sizeof(float)* 8) + sizeof(MSGHeader)+msgHeader.padding + sizeof(XMFLOAT4X4) + sizeof(int);
-		cb->freeMem += (meshes.back().vertexCount * sizeof(float)* 8) + sizeof(MSGHeader)+msgHeader.padding + sizeof(XMFLOAT4X4) +sizeof(int);
+		cb->tail += (meshes.back().vertexCount * sizeof(float)* 8) + sizeof(MSGHeader)+msgHeader.padding + sizeof(XMFLOAT4X4)+sizeof(int);
+		cb->freeMem += (meshes.back().vertexCount * sizeof(float)* 8) + sizeof(MSGHeader)+msgHeader.padding + sizeof(XMFLOAT4X4)+sizeof(int);
 	}
 	else if (type == TMeshUpdate)
 	{
@@ -157,6 +157,37 @@ void SharedMemory::ReadMemory(unsigned int type)
 	{
 		memcpy(&localMesh, (char*)buffer + localTail, sizeof(int));
 		localTail += sizeof(int);
+	}
+	else if (type == TLightCreate)
+	{
+		lightData.push_back(LightData());
+
+		memcpy(&lightData.back().pos, (char*)buffer + localTail, sizeof(XMFLOAT3));
+		localTail += sizeof(XMFLOAT3);
+		memcpy(&lightData.back().color, (char*)buffer + localTail, sizeof(XMFLOAT4));
+		localTail += sizeof(XMFLOAT4);
+
+		cb->tail += slotSize;
+		cb->freeMem += slotSize;
+	}
+	else if (type == TLightUpdate)
+	{
+		int localLight;
+		memcpy(&localLight, (char*)buffer + localTail, sizeof(int));
+		localTail += sizeof(int);
+		if (localLight == 0)
+		{
+			memcpy(&lightData.back().color, (char*)buffer + localTail, sizeof(XMFLOAT4));
+			localTail += sizeof(XMFLOAT4);
+		}
+		else if (localLight == 1)
+		{
+			memcpy(&lightData.back().pos, (char*)buffer + localTail, sizeof(XMFLOAT3));
+			localTail += sizeof(XMFLOAT3);
+		}
+
+		cb->tail += slotSize;
+		cb->freeMem += slotSize;
 	}
 }
 

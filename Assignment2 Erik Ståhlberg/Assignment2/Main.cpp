@@ -702,6 +702,22 @@ void LightCreationCB(MObject& lightObject, void* clientData)
 
 	MGlobal::displayInfo(MString() + "Color: " + r + " " + b + " " + g + " " + a);
 	MGlobal::displayInfo(MString() + "Position: " + position.x + " " + position.y + " " + position.z);
+	XMFLOAT3 positionF(position.x, position.y, position.z);
+
+	localHead = sm.cb->head;
+	// Message header
+	sm.msgHeader.type = TLightCreate;
+	sm.msgHeader.padding = slotSize - sm.msgHeaderSize - sizeof(MColor)-sizeof(XMFLOAT3);
+	memcpy((char*)sm.buffer + localHead, &sm.msgHeader, sm.msgHeaderSize);
+	localHead += sm.msgHeaderSize;
+	memcpy((char*)sm.buffer + localHead, &positionF, sizeof(XMFLOAT3));
+	localHead += sizeof(XMFLOAT3);
+	memcpy((char*)sm.buffer + localHead, &color, sizeof(MColor));
+	localHead += sizeof(MColor);
+
+	// Move header
+	sm.cb->freeMem -= slotSize;
+	sm.cb->head += slotSize;
 }
 
 void LightChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& otherPlug, void* clientData)
@@ -719,6 +735,22 @@ void LightChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& othe
 		a = color.a;
 
 		MGlobal::displayInfo(MString() + "Color: " + r + " " + b + " " + g + " " + a);
+
+		localHead = sm.cb->head;
+		// Message header
+		unsigned int localLight = 0;
+		sm.msgHeader.type = TLightUpdate;
+		sm.msgHeader.padding = slotSize - sm.msgHeaderSize - sizeof(MColor);
+		memcpy((char*)sm.buffer + localHead, &sm.msgHeader, sm.msgHeaderSize);
+		localHead += sm.msgHeaderSize;
+		memcpy((char*)sm.buffer + localHead, &localLight, sizeof(int));
+		localHead += sizeof(int);
+		memcpy((char*)sm.buffer + localHead, &color, sizeof(MColor));
+		localHead += sizeof(MColor);
+
+		// Move header
+		sm.cb->freeMem -= slotSize;
+		sm.cb->head += slotSize;
 	}
 	else if (msg & MNodeMessage::kAttributeSet)
 	{
@@ -729,6 +761,24 @@ void LightChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& othe
 		position = lightPoint.getTranslation(MSpace::kObject);
 
 		MGlobal::displayInfo(MString() + "Position: " + position.x + " " + position.y + " " + position.z);
+
+		XMFLOAT3 positionF(position.x, position.y, position.z);
+
+		localHead = sm.cb->head;
+
+		unsigned int localLight = 1;
+		sm.msgHeader.type = TLightUpdate;
+		sm.msgHeader.padding = slotSize - sm.msgHeaderSize - sizeof(XMFLOAT3);
+		memcpy((char*)sm.buffer + localHead, &sm.msgHeader, sm.msgHeaderSize);
+		localHead += sm.msgHeaderSize;
+		memcpy((char*)sm.buffer + localHead, &localLight, sizeof(int));
+		localHead += sizeof(int);
+		memcpy((char*)sm.buffer + localHead, &positionF, sizeof(XMFLOAT3));
+		localHead += sizeof(XMFLOAT3);
+
+		// Move header
+		sm.cb->freeMem -= slotSize;
+		sm.cb->head += slotSize;
 	}
 }
 

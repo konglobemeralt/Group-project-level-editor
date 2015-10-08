@@ -104,7 +104,7 @@ public:
 	struct LightData
 	{
 		XMFLOAT3 pos;
-		XMFLOAT3 color;
+		XMFLOAT4 color;
 	};
 	vector<LightData> lightData;
 

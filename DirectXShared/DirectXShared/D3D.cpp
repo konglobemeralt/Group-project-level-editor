@@ -131,6 +131,14 @@ void D3D::Update()
 
 		devcon->Unmap(meshes[localMesh].transformBuffer, 0);
 	}
+	else if (smType == TLightCreate)
+	{
+		ReadMemory(smType);
+	}
+	else if (smType == TLightUpdate)
+	{
+		ReadMemory(smType);
+	}
 }
 
 void D3D::Render()
