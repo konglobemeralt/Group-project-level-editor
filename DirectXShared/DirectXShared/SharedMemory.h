@@ -69,8 +69,13 @@ public:
 		vector<VertexData> vertexData;
 		unsigned int vertexCount;
 		XMFLOAT4X4* transform;
+		XMFLOAT4X4* invTransform;
 		ID3D11Buffer* meshesBuffer;
 		ID3D11Buffer* transformBuffer;
+
+		//Material:
+		XMFLOAT4* materialColor;
+		ID3D11Buffer* colorBuffer;
 	};
 	vector<MeshData> meshes;
 	vector<string> meshNames;

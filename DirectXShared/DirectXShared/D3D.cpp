@@ -19,7 +19,7 @@ D3D::D3D(HWND win)
 	scd.SampleDesc.Quality = 0;
 	scd.Windowed = TRUE;                                    // windowed/full-screen mode
 
-	// create a device, device context and swap chain using the information in the scd struct
+															// create a device, device context and swap chain using the information in the scd struct
 	HRESULT hr = D3D11CreateDeviceAndSwapChain(NULL,
 		D3D_DRIVER_TYPE_HARDWARE,
 		NULL,
@@ -89,6 +89,7 @@ void D3D::Update()
 		ReadMemory(smType);
 		meshes.back().meshesBuffer = CreateMesh(vertexSize * meshes.back().vertexCount, meshes.back().vertexData.data(), meshes.back().vertexCount);
 		meshes.back().transformBuffer = CreateConstantBuffer(sizeof(XMFLOAT4X4), meshes.back().transform);
+		meshes.back().colorBuffer = CreateConstantBuffer(sizeof(XMFLOAT4), meshes.back().materialColor);
 	}
 
 	else if (smType == TCameraUpdate)
@@ -158,6 +159,7 @@ void D3D::Render()
 	for (size_t i = 0; i < meshes.size(); i++)
 	{
 		devcon->VSSetConstantBuffers(0, 1, &meshes[i].transformBuffer);
+		devcon->PSSetConstantBuffers(1, 1, &meshes[i].colorBuffer);
 		devcon->PSSetShaderResources(0, 1, &meshTextures[i]);
 		devcon->IASetVertexBuffers(0, 1, &meshes[i].meshesBuffer, &vertexSize, &offset);
 		devcon->Draw(meshes[0].vertexCount, 0);

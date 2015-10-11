@@ -8,11 +8,9 @@ void GetMeshInformation(MFnMesh& mesh);
 void MeshCreationCB(MObject& node, void* clientData);
 void MeshChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& otherPlug, void* clientData);
 
-void GetTransformInformation(MFnTransform& transform);
 void TransformCreationCB(MObject& object, void* clientData);
 void TransformChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& otherPlug, void* clientData);
 
-//void GetCameraInformation(MFnCamera& camera);
 void CameraCreationCB(MObject& object, void* clientData);
 void CameraChanged(MFnTransform& transform, MFnCamera& camera);
 
@@ -21,6 +19,10 @@ void LightChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& othe
 
 void NameChangedCB(MObject& node, const MString& prevName, void* clientData);
 void TimerCB(float elapsedTime, float lastTime, void* clientData);
+
+void NodeDestroyedCB(MObject& object, MDGModifier& modifier, void* clientData);
+
+
 
 // Timer callback
 float period = 5.0f;
@@ -43,7 +45,7 @@ EXPORT MStatus initializePlugin(MObject obj)
 	if (MFAIL(res))
 		CHECK_MSTATUS(res);
 
-	sm.camDataSize = sizeof(MVector)* 3;
+	sm.camDataSize = sizeof(MVector) * 3;
 	localHead = 0;
 	slotSize = 256;
 	sm.cbSize = 20;
@@ -78,7 +80,8 @@ EXPORT MStatus uninitializePlugin(MObject obj)
 }
 
 void GetSceneData()
-{	// Meshes
+{
+	// Meshes
 	MItDag itMeshes(MItDag::kDepthFirst, MFn::kMesh);
 	while (!itMeshes.isDone())
 	{
@@ -86,6 +89,7 @@ void GetSceneData()
 		GetMeshInformation(mesh);
 		callbackIds.append(MNodeMessage::addAttributeChangedCallback(mesh.object(), MeshChangedCB));
 		callbackIds.append(MNodeMessage::addNameChangedCallback(mesh.object(), NameChangedCB));
+		callbackIds.append(MNodeMessage::addNodeAboutToDeleteCallback(mesh.object(), NodeDestroyedCB));
 		itMeshes.next();
 	}
 
@@ -94,7 +98,6 @@ void GetSceneData()
 	while (!itTransform.isDone())
 	{
 		MFnTransform transform(itTransform.item());
-		GetTransformInformation(transform);
 		callbackIds.append(MNodeMessage::addAttributeChangedCallback(transform.object(), TransformChangedCB));
 		callbackIds.append(MNodeMessage::addNameChangedCallback(transform.object(), NameChangedCB));
 		itTransform.next();
@@ -220,14 +223,54 @@ void GetMeshInformation(MFnMesh& mesh)
 		XMFLOAT4X4 matrixData;
 		XMStoreFloat4x4(&matrixData, XMMatrixTranspose(XMMatrixAffineTransformation(scaleV, zero, rotationV, translationV)));
 
+		// MATERIAL:
+		unsigned int instanceNumber = 0;
+		MObjectArray shaders;
+		MIntArray indices;
+		MPlugArray connections;
+		MPlugArray plugs;
+		MColor color;
+
+		// Find the shadingReasourceGroup
+		mesh.getConnectedShaders(instanceNumber, shaders, indices);
+		MFnDependencyNode shaderGroup(shaders[0]);
+		MGlobal::displayInfo(shaderGroup.name());
+		MPlug shaderPlug = shaderGroup.findPlug("surfaceShader");
+		MGlobal::displayInfo(shaderPlug.name());
+		shaderPlug.connectedTo(connections, true, false);
+
+		// Find the material and then color
+		if (connections[0].node().hasFn(MFn::kLambert))
+		{
+			MFnLambertShader lambertShader(connections[0].node());
+			MGlobal::displayInfo(lambertShader.name());
+			color = lambertShader.color();
+		}
+		else if (connections[0].node().hasFn(MFn::kBlinn))
+		{
+			MFnBlinnShader blinnShader(connections[0].node());
+			MGlobal::displayInfo(blinnShader.name());
+			color = blinnShader.color();
+		}
+		else if (connections[0].node().hasFn(MFn::kPhong))
+		{
+			MFnPhongShader phongShader(connections[0].node());
+			MGlobal::displayInfo(phongShader.name());
+			color = phongShader.color();
+		}
+
 		// Send data to shared memory
 		unsigned int meshSize = vertexList.length();
 		if (meshSize > 0)
 		{
+			sm.msgHeader.type = TMeshCreate;
+			sm.msgHeader.padding = ((meshSize * sizeof(float) * 8) - sm.msgHeaderSize - sizeof(XMFLOAT4X4) - sizeof(int) - sizeof(MColor)) % slotSize;
+			//do
+			//{
+			//	if (sm.cb->freeMem > ((meshSize * sizeof(float) * 8) - sm.msgHeaderSize - sizeof(XMFLOAT4X4) - sizeof(int)) + sm.msgHeader.padding)
+			//	{
 			localHead = sm.cb->head;
 			// Message header
-			sm.msgHeader.type = TMeshCreate;
-			sm.msgHeader.padding = ((meshSize * sizeof(float)* 8) - sm.msgHeaderSize - sizeof(XMFLOAT4X4) - sizeof(int)) % slotSize;
 			memcpy((char*)sm.buffer + localHead, &sm.msgHeader, sm.msgHeaderSize);
 			localHead += sm.msgHeaderSize;
 
@@ -245,12 +288,21 @@ void GetMeshInformation(MFnMesh& mesh)
 				localHead += sizeof(XMFLOAT3);
 			}
 
+			// Matrix data
 			memcpy((char*)sm.buffer + localHead, &matrixData, sizeof(XMFLOAT4X4));
 			localHead += sizeof(XMFLOAT4X4);
+
+			// Material data
+			memcpy((char*)sm.buffer + localHead, &color, sizeof(MColor));
+			localHead += sizeof(MColor);
 
 			// Move header
 			sm.cb->freeMem -= (localHead - sm.cb->head) + sm.msgHeader.padding;
 			sm.cb->head += (localHead - sm.cb->head) + sm.msgHeader.padding;
+
+			//		break;
+			//	}
+			//}while (sm.cb->freeMem >! ((meshSize * sizeof(float) * 8) - sm.msgHeaderSize - sizeof(XMFLOAT4X4) - sizeof(int)) + sm.msgHeader.padding);
 		}
 	}
 }
@@ -376,14 +428,55 @@ void MeshChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& other
 			XMFLOAT4X4 matrixData;
 			XMStoreFloat4x4(&matrixData, XMMatrixTranspose(XMMatrixAffineTransformation(scaleV, zero, rotationV, translationV)));
 
+			// MATERIAL
+			unsigned int instanceNumber = 0;
+			MObjectArray shaders;
+			MIntArray indices;
+			MPlugArray connections;
+			MPlugArray plugs;
+			MColor color;
+
+			// Find the shadingReasourceGroup
+			mesh.getConnectedShaders(instanceNumber, shaders, indices);
+			MFnDependencyNode shaderGroup(shaders[0]);
+			MGlobal::displayInfo(shaderGroup.name());
+			MPlug shaderPlug = shaderGroup.findPlug("surfaceShader");
+			MGlobal::displayInfo(shaderPlug.name());
+			shaderPlug.connectedTo(connections, true, false);
+
+			// Find the material and then color
+			if (connections[0].node().hasFn(MFn::kLambert))
+			{
+				MFnLambertShader lambertShader(connections[0].node());
+				MGlobal::displayInfo(lambertShader.name());
+				color = lambertShader.color();
+			}
+			else if (connections[0].node().hasFn(MFn::kBlinn))
+			{
+				MFnBlinnShader blinnShader(connections[0].node());
+				MGlobal::displayInfo(blinnShader.name());
+				color = blinnShader.color();
+			}
+			else if (connections[0].node().hasFn(MFn::kPhong))
+			{
+				MFnPhongShader phongShader(connections[0].node());
+				MGlobal::displayInfo(phongShader.name());
+				color = phongShader.color();
+			}
+
 			// Send data to shared memory
 			unsigned int meshSize = vertexList.length();
 			if (meshSize > 0)
 			{
+				meshNames.append(mesh.name());
+				sm.msgHeader.type = TMeshCreate;
+				sm.msgHeader.padding = ((meshSize * sizeof(float) * 8) - sm.msgHeaderSize - sizeof(XMFLOAT4X4) - sizeof(int) - sizeof(MColor)) % slotSize;
+				//do
+				//{
+				//	if (sm.cb->freeMem > ((meshSize * sizeof(float) * 8) - sm.msgHeaderSize - sizeof(XMFLOAT4X4) - sizeof(int)) + sm.msgHeader.padding)
+				//	{
 				localHead = sm.cb->head;
 				// Message header
-				sm.msgHeader.type = TMeshCreate;
-				sm.msgHeader.padding = ((meshSize * sizeof(float)* 8) - sm.msgHeaderSize - sizeof(XMFLOAT4X4)-sizeof(int)) % slotSize;
 				memcpy((char*)sm.buffer + localHead, &sm.msgHeader, sm.msgHeaderSize);
 				localHead += sm.msgHeaderSize;
 
@@ -401,12 +494,21 @@ void MeshChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& other
 					localHead += sizeof(XMFLOAT3);
 				}
 
+				// Matrix data
 				memcpy((char*)sm.buffer + localHead, &matrixData, sizeof(XMFLOAT4X4));
 				localHead += sizeof(XMFLOAT4X4);
+
+				// Material data
+				memcpy((char*)sm.buffer + localHead, &color, sizeof(MColor));
+				localHead += sizeof(MColor);
 
 				// Move header
 				sm.cb->freeMem -= (localHead - sm.cb->head) + sm.msgHeader.padding;
 				sm.cb->head += (localHead - sm.cb->head) + sm.msgHeader.padding;
+
+				//		break;
+				//	}
+				//} while (sm.cb->freeMem >! ((meshSize * sizeof(float) * 8) - sm.msgHeaderSize - sizeof(XMFLOAT4X4) - sizeof(int)) + sm.msgHeader.padding);
 			}
 		}
 
@@ -423,88 +525,11 @@ void MeshChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& other
 }
 
 
-void GetTransformInformation(MFnTransform& transform)
-{
-	MGlobal::displayInfo("Transform: " + transform.fullPathName() + " loaded!");
-	MPlug plugValue;
-
-	// Translation
-	float tx, ty, tz;
-	plugValue = transform.findPlug("tx");
-	plugValue.getValue(tx);
-	plugValue = transform.findPlug("ty");
-	plugValue.getValue(ty);
-	plugValue = transform.findPlug("tz");
-	plugValue.getValue(tz);
-
-	// Rotation
-	float rx, ry, rz;
-	plugValue = transform.findPlug("rx");
-	plugValue.getValue(rx);
-	plugValue = transform.findPlug("ry");
-	plugValue.getValue(ry);
-	plugValue = transform.findPlug("rz");
-	plugValue.getValue(rz);
-
-	// Scale
-	float sx, sy, sz;
-	plugValue = transform.findPlug("sx");
-	plugValue.getValue(sx);
-	plugValue = transform.findPlug("sy");
-	plugValue.getValue(sy);
-	plugValue = transform.findPlug("sz");
-	plugValue.getValue(sz);
-
-	// Print to script editor
-	MGlobal::displayInfo(MString("Translate: ") + tx + " " + ty + " " + tz);
-	MGlobal::displayInfo(MString("Rotation:  ") + rx + " " + ry + " " + rz);
-	MGlobal::displayInfo(MString("Scale:     ") + sx + " " + sy + " " + sz);
-}
-
 void TransformCreationCB(MObject& object, void* clientData)
 {
 	// Add a callback specifik to every new transform that are created
 	callbackIds.append(MNodeMessage::addAttributeChangedCallback(object, TransformChangedCB));
 	callbackIds.append(MNodeMessage::addNameChangedCallback(object, NameChangedCB));
-
-	MStatus res;
-	MFnTransform transform(object, &res);
-	MGlobal::displayInfo("Transform: " + transform.fullPathName() + " created!");
-	MPlug plugValue;
-
-	// Translation
-	float tx, ty, tz;
-	plugValue = transform.findPlug("tx");
-	plugValue.getValue(tx);
-	plugValue = transform.findPlug("ty");
-	plugValue.getValue(ty);
-	plugValue = transform.findPlug("tz");
-	plugValue.getValue(tz);
-
-	// Rotation
-	float rx, ry, rz;
-	plugValue = transform.findPlug("rx");
-	plugValue.getValue(rx);
-	plugValue = transform.findPlug("ry");
-	plugValue.getValue(ry);
-	plugValue = transform.findPlug("rz");
-	plugValue.getValue(rz);
-
-	// Scale
-	float sx, sy, sz;
-	plugValue = transform.findPlug("sx");
-	plugValue.getValue(sx);
-	plugValue = transform.findPlug("sy");
-	plugValue.getValue(sy);
-	plugValue = transform.findPlug("sz");
-	plugValue.getValue(sz);
-
-	// Print to script editor
-	MGlobal::displayInfo(MString("Translate: ") + tx + " " + ty + " " + tz);
-	MGlobal::displayInfo(MString("Rotation:  ") + rx + " " + ry + " " + rz);
-	MGlobal::displayInfo(MString("Scale:     ") + sx + " " + sy + " " + sz);
-
-	MFnMatrixData matrix(object);
 }
 
 void TransformChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& otherPlug, void* clientData)
@@ -523,11 +548,6 @@ void TransformChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& 
 		else
 		{
 			MStatus res;
-			//MObject object = plug.node();
-			//MFnTransform transform(object, &res);
-			////MMatrix matrix = transform.transformationMatrix();
-			////float m[4][4];
-			////matrix.get(m);
 
 			unsigned int localMesh;
 
@@ -545,14 +565,36 @@ void TransformChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& 
 			transform.getRotationQuaternion(rotation[0], rotation[1], rotation[2], rotation[3]);
 			double scale[3];
 			transform.getScale(scale);
+			// Rotation
+			float rx, ry, rz;
+			MPlug plugValue;
+			plugValue = transform.findPlug("rx");
+			plugValue.getValue(rx);
+			plugValue = transform.findPlug("ry");
+			plugValue.getValue(ry);
+			plugValue = transform.findPlug("rz");
+			plugValue.getValue(rz);
 
-			XMVECTOR translationV = XMVectorSet(translation.x, translation.y, translation.z, 0.0f);
-			XMVECTOR rotationV = XMVectorSet(rotation[0], rotation[1], rotation[2], rotation[3]);
-			XMVECTOR scaleV = XMVectorSet(scale[0], scale[1], scale[2], 0.0f);
-			XMVECTOR zero = XMVectorSet(0.0f, 0.0f, 0.0f, 0.0f);
+			//DirectX::XMVECTOR translationV = XMVectorSet(translation.x, translation.y, -translation.z, 1.0f);
+			//DirectX::XMVECTOR rotationV = XMVectorSet(rotation[0], rotation[1], rotation[2], 0.0f);
+			//DirectX::XMVECTOR scaleV = XMVectorSet(scale[0], scale[1], scale[2], 0.0f);
+			//XMVECTOR zero = XMVectorSet(0.0f, 0.0f, 0.0f, 0.0f);
+			//XMFLOAT4X4 matrixData;
+			//XMStoreFloat4x4(&matrixData, XMMatrixTranspose(XMMatrixAffineTransformation(scaleV, translationV, rotationV, translationV)));
+
+			DirectX::XMMATRIX translationM = DirectX::XMMatrixTranslation(translation.x, translation.y, translation.z);
+			DirectX::XMMATRIX rotationXM = DirectX::XMMatrixRotationX(rx);
+			DirectX::XMMATRIX rotationYM = DirectX::XMMatrixRotationX(ry);
+			DirectX::XMMATRIX rotationZM = DirectX::XMMatrixRotationX(rz);
+			DirectX::XMMATRIX scalingM = DirectX::XMMatrixScaling(scale[0], scale[1], scale[2]);
+
 			XMFLOAT4X4 matrixData;
-			XMStoreFloat4x4(&matrixData, XMMatrixTranspose(XMMatrixAffineTransformation(scaleV, translationV, rotationV, translationV)));
-		
+			XMStoreFloat4x4(&matrixData, (scalingM * rotationXM * rotationYM * rotationZM * translationM));
+
+			//do
+			//{
+			//	if (sm.cb->freeMem > slotSize)
+			//	{
 			localHead = sm.cb->head;
 			// Message header
 			sm.msgHeader.type = TtransformUpdate;
@@ -567,53 +609,16 @@ void TransformChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& 
 			// Move header
 			sm.cb->freeMem -= slotSize;
 			sm.cb->head += slotSize;
+
+			//		break;
+			//	}
+			//}while (sm.cb->freeMem >! slotSize);
 		}
 	}
 }
 
-//
-//void GetCameraInformation(MFnCamera& camera)
-//{
-//	M3dView view = M3dView::active3dView();
-//	MDagPath camPath;
-//	view.getCamera(camPath);
-//	MFnCamera activeCamera(camPath);
-//
-//	if (camera.name() == activeCamera.name())
-//	{
-//		MFnTransform transform(camera.parent(0));
-//
-//		callbackIds.append(MNodeMessage::addNameChangedCallback(transform.object(), NameChangedCB));
-//
-//		MVector camTranslations = transform.getTranslation(MSpace::kTransform);
-//		MVector viewDirection = activeCamera.viewDirection(MSpace::kWorld);
-//		MVector upDirection = activeCamera.upDirection(MSpace::kWorld);
-//		//MFloatMatrix projectionMatrix(camera.projectionMatrix());
-//
-//		viewDirection += camTranslations;
-//
-//		// Send data to shared memory
-//		localHead = sm.cb->head;
-//		// Message header
-//		sm.msgHeader.type = TCameraUpdate;
-//		sm.msgHeader.padding = slotSize - sm.camDataSize - sm.msgHeaderSize;
-//		memcpy((char*)sm.buffer + localHead, &sm.msgHeader, sm.msgHeaderSize);
-//		localHead += sm.msgHeaderSize;
-//
-//		// Data
-//		memcpy((char*)sm.buffer + localHead, &camTranslations, sizeof(MVector));
-//		localHead += sizeof(MVector);
-//		memcpy((char*)sm.buffer + localHead, &viewDirection, sizeof(MVector));
-//		localHead += sizeof(MVector);
-//		memcpy((char*)sm.buffer + localHead, &upDirection, sizeof(MVector));
-//		
-//		// Move header
-//		sm.cb->head += slotSize;
-//		sm.cb->freeMem -= slotSize;
-//	}
-//}
 
-void CameraCreationCB(MObject& object, void* clientData){}
+void CameraCreationCB(MObject& object, void* clientData) {}
 
 void CameraChanged(MFnTransform& transform, MFnCamera& camera)
 {
@@ -642,28 +647,36 @@ void CameraChanged(MFnTransform& transform, MFnCamera& camera)
 	//{
 	camFix = camTranslations;
 
-	// Send data to shared memory
-	localHead = sm.cb->head;
-	// Message header
-	sm.msgHeader.type = TCameraUpdate;
-	sm.msgHeader.padding = slotSize - sm.camDataSize - sm.msgHeaderSize;
-	memcpy((char*)sm.buffer + localHead, &sm.msgHeader, sizeof(sm.msgHeaderSize));
-	localHead += sm.msgHeaderSize;
+	do
+	{
+		if (sm.cb->freeMem > slotSize)
+		{
+			// Send data to shared memory
+			localHead = sm.cb->head;
+			// Message header
+			sm.msgHeader.type = TCameraUpdate;
+			sm.msgHeader.padding = slotSize - sm.camDataSize - sm.msgHeaderSize;
+			memcpy((char*)sm.buffer + localHead, &sm.msgHeader, sizeof(sm.msgHeaderSize));
+			localHead += sm.msgHeaderSize;
 
-	// View matrix
-	memcpy((char*)sm.buffer + localHead, &camTranslations, sizeof(MVector));
-	localHead += sizeof(MVector);
-	memcpy((char*)sm.buffer + localHead, &viewDirection, sizeof(MVector));
-	localHead += sizeof(MVector);
-	memcpy((char*)sm.buffer + localHead, &upDirection, sizeof(MVector));
-	localHead += sizeof(MVector);
+			// View matrix
+			memcpy((char*)sm.buffer + localHead, &camTranslations, sizeof(MVector));
+			localHead += sizeof(MVector);
+			memcpy((char*)sm.buffer + localHead, &viewDirection, sizeof(MVector));
+			localHead += sizeof(MVector);
+			memcpy((char*)sm.buffer + localHead, &upDirection, sizeof(MVector));
+			localHead += sizeof(MVector);
 
-	// Projection matrix
-	memcpy((char*)sm.buffer + localHead, &projection, sizeof(XMFLOAT4X4));
+			// Projection matrix
+			memcpy((char*)sm.buffer + localHead, &projection, sizeof(XMFLOAT4X4));
 
-	// Move header
-	sm.cb->head += slotSize;
-	sm.cb->freeMem -= slotSize;
+			// Move header
+			sm.cb->head += slotSize;
+			sm.cb->freeMem -= slotSize;
+
+			break;
+		}
+	} while (sm.cb->freeMem > !slotSize);
 	//}
 }
 
@@ -704,10 +717,14 @@ void LightCreationCB(MObject& lightObject, void* clientData)
 	MGlobal::displayInfo(MString() + "Position: " + position.x + " " + position.y + " " + position.z);
 	XMFLOAT3 positionF(position.x, position.y, position.z);
 
+	//do
+	//{
+	//	if (sm.cb->freeMem > slotSize)
+	//	{
 	localHead = sm.cb->head;
 	// Message header
 	sm.msgHeader.type = TLightCreate;
-	sm.msgHeader.padding = slotSize - sm.msgHeaderSize - sizeof(MColor)-sizeof(XMFLOAT3);
+	sm.msgHeader.padding = slotSize - sm.msgHeaderSize - sizeof(MColor) - sizeof(XMFLOAT3);
 	memcpy((char*)sm.buffer + localHead, &sm.msgHeader, sm.msgHeaderSize);
 	localHead += sm.msgHeaderSize;
 	memcpy((char*)sm.buffer + localHead, &positionF, sizeof(XMFLOAT3));
@@ -718,6 +735,10 @@ void LightCreationCB(MObject& lightObject, void* clientData)
 	// Move header
 	sm.cb->freeMem -= slotSize;
 	sm.cb->head += slotSize;
+
+	//		break;
+	//	}
+	//} while (sm.cb->freeMem > !slotSize);
 }
 
 void LightChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& otherPlug, void* clientData)
@@ -736,6 +757,10 @@ void LightChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& othe
 
 		MGlobal::displayInfo(MString() + "Color: " + r + " " + b + " " + g + " " + a);
 
+		//do
+		//{
+		//	if (sm.cb->freeMem > slotSize)
+		//	{
 		localHead = sm.cb->head;
 		// Message header
 		unsigned int localLight = 0;
@@ -751,6 +776,10 @@ void LightChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& othe
 		// Move header
 		sm.cb->freeMem -= slotSize;
 		sm.cb->head += slotSize;
+
+		//		break;
+		//	}
+		//} while (sm.cb->freeMem > !slotSize);
 	}
 	else if (msg & MNodeMessage::kAttributeSet)
 	{
@@ -763,6 +792,11 @@ void LightChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& othe
 		MGlobal::displayInfo(MString() + "Position: " + position.x + " " + position.y + " " + position.z);
 
 		XMFLOAT3 positionF(position.x, position.y, position.z);
+
+		//while (sm.cb->freeMem > !slotSize)
+		//{
+		//	if (sm.cb->freeMem > slotSize)
+		//	{
 
 		localHead = sm.cb->head;
 
@@ -779,6 +813,10 @@ void LightChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& othe
 		// Move header
 		sm.cb->freeMem -= slotSize;
 		sm.cb->head += slotSize;
+
+		//		break;
+		//	}
+		//}
 	}
 }
 
@@ -801,4 +839,33 @@ void TimerCB(float elapsedTime, float lastTime, void* clientData)
 {
 	totalTime += elapsedTime;
 	MGlobal::displayInfo(MString() + totalTime);
+}
+
+
+void NodeDestroyedCB(MObject& object, MDGModifier& modifier, void* clientData)
+{
+	MFnMesh mesh(object);
+	unsigned int meshIndex = meshNames.length();
+	for (size_t i = 0; i < meshNames.length(); i++)
+	{
+		if (meshNames[i] == mesh.name())
+		{
+			meshIndex = i;
+		}
+	}
+
+	localHead = sm.cb->head;
+	// Message header
+	sm.msgHeader.type = TNodeDestroyed;
+	sm.msgHeader.padding = slotSize - sm.msgHeaderSize - sizeof(int);
+	memcpy((char*)sm.buffer + localHead, &sm.msgHeader, sm.msgHeaderSize);
+	localHead += sm.msgHeaderSize;
+
+	// Node index
+	memcpy((char*)sm.buffer + localHead, &meshIndex, sizeof(int));
+	localHead += sizeof(int);
+
+	// Move header
+	sm.cb->freeMem -= slotSize;
+	sm.cb->head += slotSize;
 }

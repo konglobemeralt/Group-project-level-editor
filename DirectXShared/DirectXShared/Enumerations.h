@@ -8,5 +8,6 @@ enum Type
 	TCameraUpdate,
 	TLightCreate,
 	TLightUpdate,
+	TNodeDestroyed,
 	TAmount
 };

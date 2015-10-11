@@ -88,10 +88,6 @@ int SharedMemory::ReadMSGHeader()
 		memcpy(&msgHeader, (char*)buffer + localTail, sizeof(MSGHeader));
 		localTail += sizeof(MSGHeader);
 
-		//// Move tail
-		//cb->tail += sizeof(MSGHeader);
-		//cb->freeMem += sizeof(MSGHeader);
-
 		return msgHeader.type;
 	}
 	return -1;
@@ -126,9 +122,13 @@ void SharedMemory::ReadMemory(unsigned int type)
 		memcpy(meshes.back().transform, (char*)buffer + localTail, sizeof(XMFLOAT4X4));
 		localTail += sizeof(XMFLOAT4X4);
 
+		// Material data
+		memcpy(meshes.back().materialColor, (char*)buffer + localTail, sizeof(XMFLOAT4));
+		localTail += sizeof(XMFLOAT4);
+
 		// Move tail
-		cb->tail += (meshes.back().vertexCount * sizeof(float)* 8) + sizeof(MSGHeader)+msgHeader.padding + sizeof(XMFLOAT4X4)+sizeof(int);
-		cb->freeMem += (meshes.back().vertexCount * sizeof(float)* 8) + sizeof(MSGHeader)+msgHeader.padding + sizeof(XMFLOAT4X4)+sizeof(int);
+		cb->tail += (meshes.back().vertexCount * sizeof(float) * 8) + sizeof(MSGHeader) + msgHeader.padding + sizeof(XMFLOAT4X4) + sizeof(int);
+		cb->freeMem += (meshes.back().vertexCount * sizeof(float) * 8) + sizeof(MSGHeader) + msgHeader.padding + sizeof(XMFLOAT4X4) + sizeof(int);
 	}
 	else if (type == TMeshUpdate)
 	{
@@ -139,12 +139,12 @@ void SharedMemory::ReadMemory(unsigned int type)
 		// Read and store camera
 
 		// View matrix
-		memcpy(&cameraData->pos, (char*)buffer + localTail, sizeof(double)* 3);
-		localTail += sizeof(double)* 3;
-		memcpy(&cameraData->view, (char*)buffer + localTail, sizeof(double)* 3);
-		localTail += sizeof(double)* 3;
-		memcpy(&cameraData->up, (char*)buffer + localTail, sizeof(double)* 3);
-		localTail += sizeof(double)* 3;
+		memcpy(&cameraData->pos, (char*)buffer + localTail, sizeof(double) * 3);
+		localTail += sizeof(double) * 3;
+		memcpy(&cameraData->view, (char*)buffer + localTail, sizeof(double) * 3);
+		localTail += sizeof(double) * 3;
+		memcpy(&cameraData->up, (char*)buffer + localTail, sizeof(double) * 3);
+		localTail += sizeof(double) * 3;
 
 		// Projection matrix
 		memcpy(&projectionTemp, (char*)buffer + localTail, sizeof(XMFLOAT4X4));
