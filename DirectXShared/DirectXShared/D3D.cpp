@@ -91,7 +91,10 @@ void D3D::Update()
 		meshes.back().transformBuffer = CreateConstantBuffer(sizeof(XMFLOAT4X4), meshes.back().transform);
 		meshes.back().colorBuffer = CreateConstantBuffer(sizeof(XMFLOAT4), meshes.back().materialColor);
 	}
-
+	else if (smType == TVertexUpdate)
+	{
+		ReadMemory(smType);
+	}
 	else if (smType == TCameraUpdate)
 	{
 		// View

@@ -101,12 +101,20 @@ void SharedMemory::ReadMemory(unsigned int type)
 
 		meshes.push_back(MeshData());
 		meshes.back().transform = new XMFLOAT4X4();
+		meshes.back().materialColor = new XMFLOAT4();
 
 		// Size of mesh
 		memcpy(&meshes.back().vertexCount, (char*)buffer + localTail, sizeof(int));
 		localTail += sizeof(int);
+
 		// Rezise to hold every vertex
 		meshes.back().vertexData.resize(meshes.back().vertexCount);
+		meshes.back().idList.resize(meshes.back().vertexCount);
+
+		// Vertex indices list
+		memcpy(meshes.back().idList.data(), (char*)buffer + localTail, sizeof(int) * meshes.back().vertexCount);
+		localTail += sizeof(int) * meshes.back().vertexCount;
+
 		// Vertex data
 		for (size_t i = 0; i < meshes.back().vertexCount; i++)
 		{
@@ -127,12 +135,18 @@ void SharedMemory::ReadMemory(unsigned int type)
 		localTail += sizeof(XMFLOAT4);
 
 		// Move tail
-		cb->tail += (meshes.back().vertexCount * sizeof(float) * 8) + sizeof(MSGHeader) + msgHeader.padding + sizeof(XMFLOAT4X4) + sizeof(int);
-		cb->freeMem += (meshes.back().vertexCount * sizeof(float) * 8) + sizeof(MSGHeader) + msgHeader.padding + sizeof(XMFLOAT4X4) + sizeof(int);
+		cb->tail += (meshes.back().vertexCount * sizeof(float) * 8) + sizeof(MSGHeader) + msgHeader.padding + sizeof(XMFLOAT4X4) + sizeof(int) + sizeof(XMFLOAT4);
+		cb->freeMem += (meshes.back().vertexCount * sizeof(float)* 8) + sizeof(MSGHeader)+msgHeader.padding + sizeof(XMFLOAT4X4)+sizeof(int) + sizeof(XMFLOAT4);
 	}
 	else if (type == TMeshUpdate)
 	{
 		// Read updated data and store vertexbuffer
+	}
+	else if (type == TVertexUpdate)
+	{
+		// Mesh index
+		memcpy(&localMesh, (char*)buffer + localTail, sizeof(int));
+		memcpy(&vtxChanged, (char*)buffer + localTail, sizeof(XMFLOAT3));
 	}
 	else if (type == TCameraUpdate)
 	{

@@ -4,6 +4,7 @@ enum Type
 {
 	TMeshCreate,
 	TMeshUpdate,
+	TVertexUpdate,
 	TtransformUpdate,
 	TCameraUpdate,
 	TLightCreate,

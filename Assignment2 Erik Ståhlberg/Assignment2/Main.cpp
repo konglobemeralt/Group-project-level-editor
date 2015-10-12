@@ -426,7 +426,7 @@ void MeshChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& other
 			XMVECTOR scaleV = XMVectorSet(scale[0], scale[1], scale[2], 0.0f);
 			XMVECTOR zero = XMVectorSet(0.0f, 0.0f, 0.0f, 0.0f);
 			XMFLOAT4X4 matrixData;
-			XMStoreFloat4x4(&matrixData, XMMatrixTranspose(XMMatrixAffineTransformation(scaleV, zero, rotationV, translationV)));
+			DirectX::XMStoreFloat4x4(&matrixData, XMMatrixTranspose(XMMatrixAffineTransformation(scaleV, zero, rotationV, translationV)));
 
 			// MATERIAL
 			unsigned int instanceNumber = 0;
@@ -470,7 +470,7 @@ void MeshChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& other
 			{
 				meshNames.append(mesh.name());
 				sm.msgHeader.type = TMeshCreate;
-				sm.msgHeader.padding = ((meshSize * sizeof(float) * 8) - sm.msgHeaderSize - sizeof(XMFLOAT4X4) - sizeof(int) - sizeof(MColor)) % slotSize;
+				sm.msgHeader.padding = ((meshSize * sizeof(float) * 8) - sm.msgHeaderSize - sizeof(XMFLOAT4X4) - sizeof(int) - sizeof(MColor) - sizeof(int)*meshSize) % slotSize;
 				//do
 				//{
 				//	if (sm.cb->freeMem > ((meshSize * sizeof(float) * 8) - sm.msgHeaderSize - sizeof(XMFLOAT4X4) - sizeof(int)) + sm.msgHeader.padding)
@@ -483,6 +483,11 @@ void MeshChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& other
 				// Size of mesh
 				memcpy((char*)sm.buffer + localHead, &meshSize, sizeof(int));
 				localHead += sizeof(int);
+
+				// Vertex indices list
+				memcpy((char*)sm.buffer + localHead, &vertexIDList, sizeof(int)*meshSize);
+				localHead += sizeof(int)*meshSize;
+
 				// Vertex data
 				for (size_t i = 0; i < vertexList.length(); i++)
 				{
@@ -511,16 +516,51 @@ void MeshChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& other
 				//} while (sm.cb->freeMem >! ((meshSize * sizeof(float) * 8) - sm.msgHeaderSize - sizeof(XMFLOAT4X4) - sizeof(int)) + sm.msgHeader.padding);
 			}
 		}
+	}
+	// Vertex has changed
+	else if (strstr(plug.partialName().asChar(), "pt["))
+	{
+		MFnMesh mesh(plug.node());
+		MPoint point;
+		mesh.getPoint(plug.logicalIndex(), point);
+		MGlobal::displayInfo("Mesh: " + mesh.fullPathName() + " vertex changed!");
+		MGlobal::displayInfo(MString("Vertex ID: ") + plug.logicalIndex() + " " + point.x + " " + point.y + " " + point.z);
+		XMFLOAT3 position(point.x, point.y, point.z);
 
-		// Vertex has changed
-		else if (strstr(plug.partialName().asChar(), "pt["))
+		unsigned int meshIndex = meshNames.length();
+		for (size_t i = 0; i < meshNames.length(); i++)
 		{
-			MFnMesh mesh(plug.node());
-			MPoint point;
-			mesh.getPoint(plug.logicalIndex(), point);
-			MGlobal::displayInfo("Mesh: " + mesh.fullPathName() + " vertex changed!");
-			MGlobal::displayInfo(MString("Vertex ID: ") + plug.logicalIndex() + " " + point.x + " " + point.y + " " + point.z);
+			if (meshNames[i] == mesh.name())
+				meshIndex = i;
 		}
+
+		// Send data to shared memory
+		do
+		{
+			if (sm.cb->freeMem >= slotSize)
+			{
+				localHead = sm.cb->head;
+
+				// Message header
+				sm.msgHeader.type = TVertexUpdate;
+				sm.msgHeader.padding = slotSize - sizeof(XMFLOAT3);
+				memcpy((char*)sm.buffer + localHead, &sm.msgHeader, sm.msgHeaderSize);
+				localHead += sm.msgHeaderSize;
+
+				// Mesh index
+				memcpy((char*)sm.buffer + localHead, &meshIndex, sizeof(int));
+				localHead += sizeof(int);
+
+				// Vertex position
+				memcpy((char*)sm.buffer + localHead, &position, sizeof(XMFLOAT3));
+				localHead += sizeof(XMFLOAT3);
+
+				// Move header
+				sm.cb->freeMem -= slotSize;
+				sm.cb->head += slotSize;
+				break;
+			}
+		} while (sm.cb->freeMem >! slotSize);
 	}
 }
 
