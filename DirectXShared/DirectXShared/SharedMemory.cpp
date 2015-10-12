@@ -110,8 +110,13 @@ void SharedMemory::ReadMemory(unsigned int type)
 		// Size of mesh
 		memcpy(&meshes.back().vertexCount, (char*)buffer + localTail, sizeof(int));
 		localTail += sizeof(int);
+
 		// Rezise to hold every vertex
 		meshes.back().vertexData.resize(meshes.back().vertexCount);
+		meshes.back().idList.resize(meshes.back().vertexCount);
+
+
+
 		// Vertex data
 		for (size_t i = 0; i < meshes.back().vertexCount; i++)
 		{
@@ -141,11 +146,14 @@ void SharedMemory::ReadMemory(unsigned int type)
 	}
 	else if (type == TVertexUpdate)
 	{
+		// Mesh index
+		memcpy(&localMesh, (char*)buffer + localTail, sizeof(int));
 		localTail += sizeof(int);
 		// Vertex index
 		memcpy(&localVertex, (char*)buffer + localTail, sizeof(int));
 		localTail += sizeof(int);
 		// Vertex position
+		memcpy(&vtxChanged, (char*)buffer + localTail, sizeof(XMFLOAT3));
 		localTail += sizeof(XMFLOAT3);
 
 		// Move tail

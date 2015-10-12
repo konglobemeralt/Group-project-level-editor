@@ -95,14 +95,14 @@ void D3D::Update()
 	{
 		ReadMemory(smType);
 
-		devcon->Map(viewMatrix, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapSub);
-		view = (XMFLOAT4X4*)mapSub.pData;
+		devcon->Map(meshes[localMesh].meshesBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapSub);
+		//meshes[localMesh].vertexData = (VertexData*)mapSub.pData;
 
 		for (size_t i = 0; i < meshes[localMesh].vertexCount; i++)
 		{
 			if (meshes[localMesh].idList[i] == localVertex)
 			{
-
+				meshes[localMesh].vertexData[i].pos = vtxChanged;
 			}
 		}
 

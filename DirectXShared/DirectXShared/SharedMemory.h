@@ -72,6 +72,7 @@ public:
 		XMFLOAT4X4* transform;
 		ID3D11Buffer* meshesBuffer;
 		ID3D11Buffer* transformBuffer;
+		vector<unsigned int> idList;
 
 		//Material:
 		XMFLOAT4* materialColor;

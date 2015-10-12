@@ -1,46 +1,9 @@
-﻿Build started 2015-10-06 15:10:21.
-     1>Project "C:\temp\Group-project-level-editor\Assignment2 Erik Ståhlberg\Assignment2\Assignment2.vcxproj" on node 2 (Build target(s)).
-     1>ClCompile:
-         C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\bin\x86_amd64\CL.exe /c /I"C:\Program Files\Autodesk\Maya2016\include" /Zi /nologo /W3 /WX- /sdl /Od /D _DEBUG /D _WINDOWS /D _USRDLL /D ASSIGNMENT2_EXPORTS /D _WINDLL /D _UNICODE /D UNICODE /Gm /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Fo"x64\Debug\\" /Fd"x64\Debug\vc120.pdb" /Gd /TP /errorReport:prompt Main.cpp
-         Main.cpp
-     1>Main.cpp(16): warning C4244: 'initializing' : conversion from 'float' to 'int', possible loss of data
-     1>Main.cpp(219): warning C4267: 'argument' : conversion from 'size_t' to 'unsigned int', possible loss of data
-     1>Main.cpp(228): warning C4244: 'argument' : conversion from 'size_t' to 'double', possible loss of data
-     1>Main.cpp(228): warning C4267: 'argument' : conversion from 'size_t' to 'unsigned int', possible loss of data
-     1>Main.cpp(237): warning C4244: 'argument' : conversion from 'size_t' to 'double', possible loss of data
-     1>Main.cpp(237): warning C4267: 'argument' : conversion from 'size_t' to 'unsigned int', possible loss of data
-     1>Main.cpp(401): warning C4267: 'argument' : conversion from 'size_t' to 'unsigned int', possible loss of data
-     1>Main.cpp(403): warning C4267: 'argument' : conversion from 'size_t' to 'int', possible loss of data
-     1>Main.cpp(411): warning C4267: 'argument' : conversion from 'size_t' to 'unsigned int', possible loss of data
-     1>Main.cpp(412): warning C4267: 'argument' : conversion from 'size_t' to 'unsigned int', possible loss of data
-     1>Main.cpp(413): warning C4267: 'argument' : conversion from 'size_t' to 'unsigned int', possible loss of data
-     1>Main.cpp(423): warning C4267: 'argument' : conversion from 'size_t' to 'unsigned int', possible loss of data
-     1>Main.cpp(424): warning C4267: 'argument' : conversion from 'size_t' to 'unsigned int', possible loss of data
-     1>Main.cpp(425): warning C4267: 'argument' : conversion from 'size_t' to 'unsigned int', possible loss of data
-     1>Main.cpp(435): warning C4267: 'argument' : conversion from 'size_t' to 'unsigned int', possible loss of data
-     1>Main.cpp(436): warning C4267: 'argument' : conversion from 'size_t' to 'unsigned int', possible loss of data
-     1>Main.cpp(437): warning C4267: 'argument' : conversion from 'size_t' to 'unsigned int', possible loss of data
-     1>Main.cpp(461): warning C4267: 'argument' : conversion from 'size_t' to 'unsigned int', possible loss of data
-     1>Main.cpp(461): warning C4244: 'argument' : conversion from 'size_t' to 'double', possible loss of data
-     1>Main.cpp(462): warning C4244: 'argument' : conversion from 'size_t' to 'double', possible loss of data
-     1>Main.cpp(462): warning C4267: 'argument' : conversion from 'size_t' to 'unsigned int', possible loss of data
-     1>Main.cpp(463): warning C4244: 'argument' : conversion from 'size_t' to 'double', possible loss of data
-     1>Main.cpp(463): warning C4267: 'argument' : conversion from 'size_t' to 'unsigned int', possible loss of data
-     1>Main.cpp(464): warning C4267: 'argument' : conversion from 'size_t' to 'unsigned int', possible loss of data
-     1>Main.cpp(464): warning C4244: 'argument' : conversion from 'double' to 'float', possible loss of data
-     1>Main.cpp(465): warning C4267: 'argument' : conversion from 'size_t' to 'unsigned int', possible loss of data
-     1>Main.cpp(466): warning C4267: 'argument' : conversion from 'size_t' to 'unsigned int', possible loss of data
-     1>Main.cpp(466): warning C4244: 'argument' : conversion from 'double' to 'float', possible loss of data
-     1>Main.cpp(467): warning C4267: 'argument' : conversion from 'size_t' to 'unsigned int', possible loss of data
-     1>Main.cpp(467): warning C4244: 'argument' : conversion from 'double' to 'float', possible loss of data
-     1>Main.cpp(513): warning C4244: '+=' : conversion from 'float' to 'int', possible loss of data
-       Link:
-         C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\bin\x86_amd64\link.exe /ERRORREPORT:PROMPT /OUT:"C:\temp\Group-project-level-editor\Assignment2 Erik Ståhlberg\x64\Debug\Assignment2.mll" /INCREMENTAL /NOLOGO /LIBPATH:"C:\Program Files\Autodesk\Maya2016\lib" kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /DEBUG /PDB:"C:\temp\Group-project-level-editor\Assignment2 Erik Ståhlberg\x64\Debug\Assignment2.pdb" /SUBSYSTEM:WINDOWS /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"C:\temp\Group-project-level-editor\Assignment2 Erik Ståhlberg\x64\Debug\Assignment2.lib" /MACHINE:X64 /DLL x64\Debug\Callbacks.obj
-         x64\Debug\Main.obj
-         x64\Debug\SharedMemory.obj
-         Assignment2.vcxproj -> C:\temp\Group-project-level-editor\Assignment2 Erik Ståhlberg\x64\Debug\Assignment2.mll
-     1>Done Building Project "C:\temp\Group-project-level-editor\Assignment2 Erik Ståhlberg\Assignment2\Assignment2.vcxproj" (Build target(s)).
+﻿Build started 2015-10-12 12:45:03.
+     1>Project "C:\Users\BTH\Desktop\Group-project-level-editor\Assignment2 Erik Ståhlberg\Assignment2\Assignment2.vcxproj" on node 2 (Build target(s)).
+     1>Link:
+         Assignment2.vcxproj -> C:\Users\BTH\Desktop\Group-project-level-editor\Assignment2 Erik Ståhlberg\x64\Debug\Assignment2.mll
+     1>Done Building Project "C:\Users\BTH\Desktop\Group-project-level-editor\Assignment2 Erik Ståhlberg\Assignment2\Assignment2.vcxproj" (Build target(s)).
 
 Build succeeded.
 
-Time Elapsed 00:00:01.38
+Time Elapsed 00:00:00.05
