@@ -92,11 +92,24 @@ void D3D::Update()
 		meshes.back().colorBuffer = CreateConstantBuffer(sizeof(XMFLOAT4), meshes.back().materialColor);
 	}
 
+
+		devcon->Map(meshes[localMesh].meshesBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapSub);
+		(VertexData*)meshes[localMesh].vertexData[0] = (VertexData*)mapSub.pData;
+
+		for (size_t i = 0; i < meshes[localMesh].vertexCount; i++)
+		{
+			if (meshes[localMesh].idList[i] == localVertex)
+			{
+
+			}
+		}
+
+		devcon->Unmap(meshes[localMesh].meshesBuffer, 0);
 	else if (smType == TCameraUpdate)
 	{
 		// View
-		devcon->Map(viewMatrix, 0, D3D11_MAP_WRITE_DISCARD, 0, &camMapSub);
-		view = (XMFLOAT4X4*)camMapSub.pData;
+		devcon->Map(viewMatrix, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapSub);
+		view = (XMFLOAT4X4*)mapSub.pData;
 		ReadMemory(smType);
 
 		XMStoreFloat4x4(view, XMMatrixTranspose(XMMatrixLookAtLH(
@@ -107,8 +120,8 @@ void D3D::Update()
 		devcon->Unmap(viewMatrix, 0);
 
 		//// Projection
-		//devcon->Map(projectionMatrix, 0, D3D11_MAP_WRITE_DISCARD, 0, &camMapSub);
-		//projection = (XMFLOAT4X4*)camMapSub.pData;
+		//devcon->Map(projectionMatrix, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapSub);
+		//projection = (XMFLOAT4X4*)mapSub.pData;
 
 		//projection = &projectionTemp;
 
@@ -120,8 +133,8 @@ void D3D::Update()
 	{
 		// View
 		ReadMemory(smType);
-		devcon->Map(meshes[localMesh].transformBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &camMapSub);
-		meshes[localMesh].transform = (XMFLOAT4X4*)camMapSub.pData;
+		devcon->Map(meshes[localMesh].transformBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapSub);
+		meshes[localMesh].transform = (XMFLOAT4X4*)mapSub.pData;
 
 		memcpy(meshes[localMesh].transform, (char*)buffer + localTail, sizeof(XMFLOAT4X4));
 		localTail += sizeof(XMFLOAT4X4);

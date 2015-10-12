@@ -525,6 +525,7 @@ void MeshChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& other
 		mesh.getPoint(plug.logicalIndex(), point);
 		MGlobal::displayInfo("Mesh: " + mesh.fullPathName() + " vertex changed!");
 		MGlobal::displayInfo(MString("Vertex ID: ") + plug.logicalIndex() + " " + point.x + " " + point.y + " " + point.z);
+		unsigned int vtxIndex = plug.logicalIndex();
 		XMFLOAT3 position(point.x, point.y, point.z);
 
 		unsigned int meshIndex = meshNames.length();
@@ -549,6 +550,10 @@ void MeshChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& other
 
 				// Mesh index
 				memcpy((char*)sm.buffer + localHead, &meshIndex, sizeof(int));
+				localHead += sizeof(int);
+
+				// Vertex index
+				memcpy((char*)sm.buffer + localHead, &vtxIndex, sizeof(int));
 				localHead += sizeof(int);
 
 				// Vertex position

@@ -68,6 +68,7 @@ public:
 	{
 		vector<VertexData> vertexData;
 		unsigned int vertexCount;
+		vector<unsigned int> idList;
 		XMFLOAT4X4* transform;
 		ID3D11Buffer* meshesBuffer;
 		ID3D11Buffer* transformBuffer;
@@ -79,6 +80,8 @@ public:
 	vector<MeshData> meshes;
 	vector<string> meshNames;
 	unsigned int localMesh;
+	unsigned int localVertex;
+	XMFLOAT3 vtxChanged;
 
 	// TEXTURES
 	vector<ID3D11ShaderResourceView*> meshTextures;
@@ -94,7 +97,7 @@ public:
 	XMFLOAT4X4 projectionTemp;
 	ID3D11Buffer* viewMatrix;
 	ID3D11Buffer* projectionMatrix;
-	D3D11_MAPPED_SUBRESOURCE camMapSub;
+	D3D11_MAPPED_SUBRESOURCE mapSub;
 
 	struct CameraData
 	{
