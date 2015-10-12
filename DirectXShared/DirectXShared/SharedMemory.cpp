@@ -135,8 +135,8 @@ void SharedMemory::ReadMemory(unsigned int type)
 		localTail += sizeof(XMFLOAT4);
 
 		// Move tail
-		cb->tail += (meshes.back().vertexCount * sizeof(float) * 8) + sizeof(MSGHeader) + msgHeader.padding + sizeof(XMFLOAT4X4) + sizeof(int) + sizeof(XMFLOAT4);
-		cb->freeMem += (meshes.back().vertexCount * sizeof(float)* 8) + sizeof(MSGHeader)+msgHeader.padding + sizeof(XMFLOAT4X4)+sizeof(int) + sizeof(XMFLOAT4);
+		cb->tail += (meshes.back().vertexCount * sizeof(float) * 8) + sizeof(MSGHeader) + msgHeader.padding + sizeof(XMFLOAT4X4) + sizeof(int) + sizeof(XMFLOAT4) + sizeof(int) * meshes.back().vertexCount;
+		cb->freeMem += (meshes.back().vertexCount * sizeof(float)* 8) + sizeof(MSGHeader)+msgHeader.padding + sizeof(XMFLOAT4X4)+sizeof(int)+sizeof(XMFLOAT4) + sizeof(int)* meshes.back().vertexCount;
 	}
 	else if (type == TMeshUpdate)
 	{
@@ -146,7 +146,17 @@ void SharedMemory::ReadMemory(unsigned int type)
 	{
 		// Mesh index
 		memcpy(&localMesh, (char*)buffer + localTail, sizeof(int));
+		localTail += sizeof(int);
+		// Vertex index
+		memcpy(&localVertex, (char*)buffer + localTail, sizeof(int));
+		localTail += sizeof(int);
+		// Vertex position
 		memcpy(&vtxChanged, (char*)buffer + localTail, sizeof(XMFLOAT3));
+		localTail += sizeof(XMFLOAT3);
+
+		// Move tail
+		cb->tail += slotSize;
+		cb->freeMem += slotSize;
 	}
 	else if (type == TCameraUpdate)
 	{
