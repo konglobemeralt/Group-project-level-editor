@@ -470,7 +470,7 @@ void MeshChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& other
 			{
 				meshNames.append(mesh.name());
 				sm.msgHeader.type = TMeshCreate;
-				sm.msgHeader.padding = ((meshSize * sizeof(float) * 8) - sm.msgHeaderSize - sizeof(XMFLOAT4X4) - sizeof(int) - sizeof(MColor) - sizeof(int)*meshSize) % slotSize;
+				sm.msgHeader.padding = slotSize - ((meshSize * sizeof(float) * 8) + sm.msgHeaderSize + sizeof(XMFLOAT4X4) + sizeof(int) + sizeof(MColor) + sizeof(int)*meshSize) % slotSize;
 				//do
 				//{
 				//	if (sm.cb->freeMem > ((meshSize * sizeof(float) * 8) - sm.msgHeaderSize - sizeof(XMFLOAT4X4) - sizeof(int)) + sm.msgHeader.padding)
@@ -523,10 +523,42 @@ void MeshChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& other
 		MFnMesh mesh(plug.node());
 		MPoint point;
 		mesh.getPoint(plug.logicalIndex(), point);
-		MGlobal::displayInfo("Mesh: " + mesh.fullPathName() + " vertex changed!");
 		MGlobal::displayInfo(MString("Vertex ID: ") + plug.logicalIndex() + " " + point.x + " " + point.y + " " + point.z);
 		unsigned int vtxIndex = plug.logicalIndex();
 		XMFLOAT3 position(point.x, point.y, point.z);
+
+		//MVectorArray vertexList;
+		MFloatArray vertexList;
+		int vertexPoint[3];
+		MIntArray triangleCounts;
+		MIntArray triangleVertices;
+		mesh.getTriangles(triangleCounts, triangleVertices);
+
+		for (size_t i = 0; i < mesh.numPolygons(); i++)
+		{
+			for (size_t j = 0; j < triangleCounts[i]; j++)
+			{
+				mesh.getPolygonTriangleVertices(i, j, vertexPoint);
+
+				// Vertex 0 in triangle:
+				mesh.getPoint(vertexPoint[0], point);
+				vertexList.append(point.x);
+				vertexList.append(point.y);
+				vertexList.append(point.z);
+
+				// Vertex 1 in triangle:
+				mesh.getPoint(vertexPoint[1], point);
+				vertexList.append(point.x);
+				vertexList.append(point.y);
+				vertexList.append(point.z);
+
+				// Vertex 2 in triangle:
+				mesh.getPoint(vertexPoint[2], point);
+				vertexList.append(point.x);
+				vertexList.append(point.y);
+				vertexList.append(point.z);
+			}
+		}
 
 		unsigned int meshIndex = meshNames.length();
 		for (size_t i = 0; i < meshNames.length(); i++)
@@ -544,7 +576,7 @@ void MeshChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& other
 
 				// Message header
 				sm.msgHeader.type = TVertexUpdate;
-				sm.msgHeader.padding = slotSize - sizeof(XMFLOAT3);
+				sm.msgHeader.padding = slotSize - ((sizeof(float)* vertexList.length()) + sm.msgHeaderSize + sizeof(int)) % slotSize;
 				memcpy((char*)sm.buffer + localHead, &sm.msgHeader, sm.msgHeaderSize);
 				localHead += sm.msgHeaderSize;
 
@@ -552,17 +584,13 @@ void MeshChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& other
 				memcpy((char*)sm.buffer + localHead, &meshIndex, sizeof(int));
 				localHead += sizeof(int);
 
-				// Vertex index
-				memcpy((char*)sm.buffer + localHead, &vtxIndex, sizeof(int));
-				localHead += sizeof(int);
-
-				// Vertex position
-				memcpy((char*)sm.buffer + localHead, &position, sizeof(XMFLOAT3));
-				localHead += sizeof(XMFLOAT3);
+				// Vertex data
+				memcpy((char*)sm.buffer + localHead, &vertexList, sizeof(float) * vertexList.length());
+				localHead += sizeof(float) * vertexList.length();
 
 				// Move header
-				sm.cb->freeMem -= slotSize;
-				sm.cb->head += slotSize;
+				sm.cb->freeMem -= (localHead - sm.cb->head) + sm.msgHeader.padding;
+				sm.cb->head += (localHead - sm.cb->head) + sm.msgHeader.padding;
 				break;
 			}
 		} while (sm.cb->freeMem >! slotSize);

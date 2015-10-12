@@ -115,7 +115,9 @@ void SharedMemory::ReadMemory(unsigned int type)
 		meshes.back().vertexData.resize(meshes.back().vertexCount);
 		meshes.back().idList.resize(meshes.back().vertexCount);
 
-
+		// Vertex indices list
+		memcpy(meshes.back().idList.data(), (char*)buffer + localTail, sizeof(int) * meshes.back().vertexCount);
+		localTail += sizeof(int)* meshes.back().vertexCount;
 
 		// Vertex data
 		for (size_t i = 0; i < meshes.back().vertexCount; i++)
@@ -149,16 +151,6 @@ void SharedMemory::ReadMemory(unsigned int type)
 		// Mesh index
 		memcpy(&localMesh, (char*)buffer + localTail, sizeof(int));
 		localTail += sizeof(int);
-		// Vertex index
-		memcpy(&localVertex, (char*)buffer + localTail, sizeof(int));
-		localTail += sizeof(int);
-		// Vertex position
-		memcpy(&vtxChanged, (char*)buffer + localTail, sizeof(XMFLOAT3));
-		localTail += sizeof(XMFLOAT3);
-
-		// Move tail
-		cb->tail += slotSize;
-		cb->freeMem += slotSize;
 	}
 	else if (type == TCameraUpdate)
 	{

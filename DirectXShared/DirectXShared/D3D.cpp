@@ -94,17 +94,16 @@ void D3D::Update()
 	else if (smType == TVertexUpdate)
 	{
 		ReadMemory(smType);
-
 		devcon->Map(meshes[localMesh].meshesBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapSub);
-		//meshes[localMesh].vertexData = (VertexData*)mapSub.pData;
+		meshes[localMesh].vertexData._Myfirst = (VertexData*)mapSub.pData;
 
-		for (size_t i = 0; i < meshes[localMesh].vertexCount; i++)
-		{
-			if (meshes[localMesh].idList[i] == localVertex)
-			{
-				meshes[localMesh].vertexData[i].pos = vtxChanged;
-			}
-		}
+		// Vertex data
+		memcpy(meshes[localMesh].vertexData.data(), (char*)buffer + localTail, meshes[localMesh].vertexCount * sizeof(XMFLOAT3));
+		localTail += meshes[localMesh].vertexCount * sizeof(XMFLOAT3);
+
+		// Move tail
+		cb->freeMem += (localTail - cb->tail) + msgHeader.padding;
+		cb->tail += (localTail - cb->tail) + msgHeader.padding;
 
 		devcon->Unmap(meshes[localMesh].meshesBuffer, 0);
 	}
