@@ -228,7 +228,6 @@ void GetMeshInformation(MFnMesh& mesh)
 		MObjectArray shaders;
 		MIntArray indices;
 		MPlugArray connections;
-		MPlugArray plugs;
 		MColor color;
 
 		// Find the shadingReasourceGroup
@@ -238,6 +237,30 @@ void GetMeshInformation(MFnMesh& mesh)
 		MPlug shaderPlug = shaderGroup.findPlug("surfaceShader");
 		MGlobal::displayInfo(shaderPlug.name());
 		shaderPlug.connectedTo(connections, true, false);
+
+
+		MItDependencyNodes it(MFn::kFileTexture);
+
+		MObjectArray Files;
+
+		MString filename;
+
+		while (!it.isDone())
+		{
+			MFnDependencyNode fn(it.item());
+
+			Files.append(it.item());
+
+			MPlug ftn = fn.findPlug("ftn");
+
+			ftn.getValue(filename);
+
+			MGlobal::displayInfo(filename);
+
+			it.next();
+		}
+
+		//http://nccastaff.bournemouth.ac.uk/jmacey/RobTheBloke/www/research/maya/mfntexture.htm
 
 		// Find the material and then color
 		if (connections[0].node().hasFn(MFn::kLambert))
@@ -433,7 +456,6 @@ void MeshChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& other
 			MObjectArray shaders;
 			MIntArray indices;
 			MPlugArray connections;
-			MPlugArray plugs;
 			MColor color;
 
 			// Find the shadingReasourceGroup
@@ -565,7 +587,7 @@ void MeshChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& other
 				sm.cb->head += slotSize;
 				break;
 			}
-		} while (sm.cb->freeMem >! slotSize);
+		} while (sm.cb->freeMem > !slotSize);
 	}
 }
 
