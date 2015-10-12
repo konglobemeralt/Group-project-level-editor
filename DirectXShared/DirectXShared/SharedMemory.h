@@ -69,7 +69,6 @@ public:
 		vector<VertexData> vertexData;
 		unsigned int vertexCount;
 		XMFLOAT4X4* transform;
-		XMFLOAT4X4* invTransform;
 		ID3D11Buffer* meshesBuffer;
 		ID3D11Buffer* transformBuffer;
 
@@ -111,7 +110,13 @@ public:
 		XMFLOAT3 pos;
 		XMFLOAT4 color;
 	};
-	vector<LightData> lightData;
+	struct Lights
+	{
+		LightData* lightData;
+		ID3D11Buffer* lightBuffer;
+	};
+	vector<Lights> lights;
+	int localLight;
 
 	// Material
 };

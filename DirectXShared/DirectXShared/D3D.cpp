@@ -19,7 +19,7 @@ D3D::D3D(HWND win)
 	scd.SampleDesc.Quality = 0;
 	scd.Windowed = TRUE;                                    // windowed/full-screen mode
 
-															// create a device, device context and swap chain using the information in the scd struct
+	// create a device, device context and swap chain using the information in the scd struct
 	HRESULT hr = D3D11CreateDeviceAndSwapChain(NULL,
 		D3D_DRIVER_TYPE_HARDWARE,
 		NULL,
@@ -91,10 +91,7 @@ void D3D::Update()
 		meshes.back().transformBuffer = CreateConstantBuffer(sizeof(XMFLOAT4X4), meshes.back().transform);
 		meshes.back().colorBuffer = CreateConstantBuffer(sizeof(XMFLOAT4), meshes.back().materialColor);
 	}
-	else if (smType == TVertexUpdate)
-	{
-		ReadMemory(smType);
-	}
+
 	else if (smType == TCameraUpdate)
 	{
 		// View
@@ -138,10 +135,29 @@ void D3D::Update()
 	else if (smType == TLightCreate)
 	{
 		ReadMemory(smType);
+		lights.back().lightBuffer = CreateConstantBuffer(sizeof(LightData), lights.back().lightData);
 	}
 	else if (smType == TLightUpdate)
 	{
+		// View
 		ReadMemory(smType);
+		devcon->Map(lights.back().lightBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &camMapSub);
+
+		if (localLight == 0)
+		{
+			memcpy(&lights.back().lightData->color, (char*)buffer + localTail, sizeof(XMFLOAT4));
+			localTail += sizeof(XMFLOAT4);
+		}
+		else if (localLight == 1)
+		{
+			memcpy(&lights.back().lightData->pos, (char*)buffer + localTail, sizeof(XMFLOAT3));
+			localTail += sizeof(XMFLOAT3);
+		}
+
+		cb->tail += slotSize;
+		cb->freeMem += slotSize;
+
+		devcon->Unmap(lights.back().lightBuffer, 0);
 	}
 }
 
@@ -158,6 +174,10 @@ void D3D::Render()
 	devcon->IASetInputLayout(inputLayout);
 	devcon->VSSetShader(vertexShader, NULL, 0);
 	devcon->PSSetShader(pixelShader, NULL, 0);
+
+	//Light do a 'for' later:
+	if (lights.size() > 0)
+		devcon->PSSetConstantBuffers(0, 1, &lights.back().lightBuffer);
 
 	for (size_t i = 0; i < meshes.size(); i++)
 	{
@@ -250,6 +270,7 @@ void D3D::CreateShaders()
 		{ "SV_POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
 		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
 		{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
 	};
 	device->CreateInputLayout(inputDesc, 3, pVS->GetBufferPointer(), pVS->GetBufferSize(), &inputLayout);
 	pVS->Release();

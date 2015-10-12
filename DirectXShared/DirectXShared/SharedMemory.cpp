@@ -88,6 +88,10 @@ int SharedMemory::ReadMSGHeader()
 		memcpy(&msgHeader, (char*)buffer + localTail, sizeof(MSGHeader));
 		localTail += sizeof(MSGHeader);
 
+		//// Move tail
+		//cb->tail += sizeof(MSGHeader);
+		//cb->freeMem += sizeof(MSGHeader);
+
 		return msgHeader.type;
 	}
 	return -1;
@@ -106,15 +110,8 @@ void SharedMemory::ReadMemory(unsigned int type)
 		// Size of mesh
 		memcpy(&meshes.back().vertexCount, (char*)buffer + localTail, sizeof(int));
 		localTail += sizeof(int);
-
 		// Rezise to hold every vertex
 		meshes.back().vertexData.resize(meshes.back().vertexCount);
-		meshes.back().idList.resize(meshes.back().vertexCount);
-
-		// Vertex indices list
-		memcpy(meshes.back().idList.data(), (char*)buffer + localTail, sizeof(int) * meshes.back().vertexCount);
-		localTail += sizeof(int) * meshes.back().vertexCount;
-
 		// Vertex data
 		for (size_t i = 0; i < meshes.back().vertexCount; i++)
 		{
@@ -135,30 +132,24 @@ void SharedMemory::ReadMemory(unsigned int type)
 		localTail += sizeof(XMFLOAT4);
 
 		// Move tail
-		cb->tail += (meshes.back().vertexCount * sizeof(float) * 8) + sizeof(MSGHeader) + msgHeader.padding + sizeof(XMFLOAT4X4) + sizeof(int) + sizeof(XMFLOAT4);
-		cb->freeMem += (meshes.back().vertexCount * sizeof(float)* 8) + sizeof(MSGHeader)+msgHeader.padding + sizeof(XMFLOAT4X4)+sizeof(int) + sizeof(XMFLOAT4);
+		cb->tail += (meshes.back().vertexCount * sizeof(float)* 8) + sizeof(MSGHeader)+msgHeader.padding + sizeof(XMFLOAT4X4)+sizeof(int)+sizeof(XMFLOAT4);
+		cb->freeMem += (meshes.back().vertexCount * sizeof(float)* 8) + sizeof(MSGHeader)+msgHeader.padding + sizeof(XMFLOAT4X4)+sizeof(int)+sizeof(XMFLOAT4);
 	}
 	else if (type == TMeshUpdate)
 	{
 		// Read updated data and store vertexbuffer
-	}
-	else if (type == TVertexUpdate)
-	{
-		// Mesh index
-		memcpy(&localMesh, (char*)buffer + localTail, sizeof(int));
-		memcpy(&vtxChanged, (char*)buffer + localTail, sizeof(XMFLOAT3));
 	}
 	else if (type == TCameraUpdate)
 	{
 		// Read and store camera
 
 		// View matrix
-		memcpy(&cameraData->pos, (char*)buffer + localTail, sizeof(double) * 3);
-		localTail += sizeof(double) * 3;
-		memcpy(&cameraData->view, (char*)buffer + localTail, sizeof(double) * 3);
-		localTail += sizeof(double) * 3;
-		memcpy(&cameraData->up, (char*)buffer + localTail, sizeof(double) * 3);
-		localTail += sizeof(double) * 3;
+		memcpy(&cameraData->pos, (char*)buffer + localTail, sizeof(double)* 3);
+		localTail += sizeof(double)* 3;
+		memcpy(&cameraData->view, (char*)buffer + localTail, sizeof(double)* 3);
+		localTail += sizeof(double)* 3;
+		memcpy(&cameraData->up, (char*)buffer + localTail, sizeof(double)* 3);
+		localTail += sizeof(double)* 3;
 
 		// Projection matrix
 		memcpy(&projectionTemp, (char*)buffer + localTail, sizeof(XMFLOAT4X4));
@@ -174,11 +165,12 @@ void SharedMemory::ReadMemory(unsigned int type)
 	}
 	else if (type == TLightCreate)
 	{
-		lightData.push_back(LightData());
+		lights.push_back(Lights());
+		lights.back().lightData = new LightData();
 
-		memcpy(&lightData.back().pos, (char*)buffer + localTail, sizeof(XMFLOAT3));
+		memcpy(&lights.back().lightData->pos, (char*)buffer + localTail, sizeof(XMFLOAT3));
 		localTail += sizeof(XMFLOAT3);
-		memcpy(&lightData.back().color, (char*)buffer + localTail, sizeof(XMFLOAT4));
+		memcpy(&lights.back().lightData->color, (char*)buffer + localTail, sizeof(XMFLOAT4));
 		localTail += sizeof(XMFLOAT4);
 
 		cb->tail += slotSize;
@@ -186,22 +178,8 @@ void SharedMemory::ReadMemory(unsigned int type)
 	}
 	else if (type == TLightUpdate)
 	{
-		int localLight;
 		memcpy(&localLight, (char*)buffer + localTail, sizeof(int));
 		localTail += sizeof(int);
-		if (localLight == 0)
-		{
-			memcpy(&lightData.back().color, (char*)buffer + localTail, sizeof(XMFLOAT4));
-			localTail += sizeof(XMFLOAT4);
-		}
-		else if (localLight == 1)
-		{
-			memcpy(&lightData.back().pos, (char*)buffer + localTail, sizeof(XMFLOAT3));
-			localTail += sizeof(XMFLOAT3);
-		}
-
-		cb->tail += slotSize;
-		cb->freeMem += slotSize;
 	}
 }
 
