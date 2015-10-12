@@ -87,7 +87,7 @@ void D3D::Update()
 	if (smType == TMeshCreate)
 	{
 		ReadMemory(smType);
-		meshes.back().meshesBuffer = CreateMesh(vertexSize * meshes.back().vertexCount, meshes.back().vertexData.data(), meshes.back().vertexCount);
+		meshes.back().meshesBuffer = CreateMesh(vertexSize * meshes.back().vertexCount, meshes.back().vertexData, meshes.back().vertexCount);
 		meshes.back().transformBuffer = CreateConstantBuffer(sizeof(XMFLOAT4X4), meshes.back().transform);
 		meshes.back().colorBuffer = CreateConstantBuffer(sizeof(XMFLOAT4), meshes.back().materialColor);
 	}
@@ -95,10 +95,10 @@ void D3D::Update()
 	{
 		ReadMemory(smType);
 		devcon->Map(meshes[localMesh].meshesBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapSub);
-		meshes[localMesh].vertexData._Myfirst = (VertexData*)mapSub.pData;
+		meshes[localMesh].vertexData = (VertexData*)mapSub.pData;
 
 		// Vertex data
-		memcpy(meshes[localMesh].vertexData.data(), (char*)buffer + localTail, meshes[localMesh].vertexCount * sizeof(XMFLOAT3));
+		memcpy(meshes[localMesh].vertexData, (char*)buffer + localTail, meshes[localMesh].vertexCount * sizeof(XMFLOAT3));
 		localTail += meshes[localMesh].vertexCount * sizeof(XMFLOAT3);
 
 		// Move tail
@@ -174,6 +174,24 @@ void D3D::Update()
 
 		devcon->Unmap(lights.back().lightBuffer, 0);
 	}
+	else if (smType == TNodeDestroyed)
+	{
+		localTail;
+		ReadMemory(smType);
+
+		// Delete mesh with the given index
+		delete[] meshes[localMesh].vertexData;
+		delete meshes[localMesh].transform;
+		delete meshes[localMesh].materialColor;
+
+		meshes[localMesh].idList.clear();
+		meshes[localMesh].idList.~vector();
+
+		meshes[localMesh].meshesBuffer->Release();
+		meshes[localMesh].transformBuffer->Release();
+		meshes[localMesh].colorBuffer->Release();
+
+	}
 }
 
 void D3D::Render()
@@ -196,11 +214,14 @@ void D3D::Render()
 
 	for (size_t i = 0; i < meshes.size(); i++)
 	{
-		devcon->VSSetConstantBuffers(0, 1, &meshes[i].transformBuffer);
-		devcon->PSSetConstantBuffers(1, 1, &meshes[i].colorBuffer);
-		devcon->PSSetShaderResources(0, 1, &meshTextures[i]);
-		devcon->IASetVertexBuffers(0, 1, &meshes[i].meshesBuffer, &vertexSize, &offset);
-		devcon->Draw(meshes[0].vertexCount, 0);
+		if (meshes[i].meshesBuffer != NULL)
+		{
+			devcon->VSSetConstantBuffers(0, 1, &meshes[i].transformBuffer);
+			devcon->PSSetConstantBuffers(1, 1, &meshes[i].colorBuffer);
+			devcon->PSSetShaderResources(0, 1, &meshTextures[i]);
+			devcon->IASetVertexBuffers(0, 1, &meshes[i].meshesBuffer, &vertexSize, &offset);
+			devcon->Draw(meshes[0].vertexCount, 0);
+		}
 	}
 	swapChain->Present(0, 0);
 }

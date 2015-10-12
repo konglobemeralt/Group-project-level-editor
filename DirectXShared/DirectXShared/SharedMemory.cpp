@@ -112,7 +112,8 @@ void SharedMemory::ReadMemory(unsigned int type)
 		localTail += sizeof(int);
 
 		// Rezise to hold every vertex
-		meshes.back().vertexData.resize(meshes.back().vertexCount);
+		//meshes.back().vertexData.resize(meshes.back().vertexCount);
+		meshes.back().vertexData = new VertexData[meshes.back().vertexCount];
 		meshes.back().idList.resize(meshes.back().vertexCount);
 
 		// Vertex indices list
@@ -194,13 +195,23 @@ void SharedMemory::ReadMemory(unsigned int type)
 		memcpy(&localLight, (char*)buffer + localTail, sizeof(int));
 		localTail += sizeof(int);
 	}
+	else if (type == TNodeDestroyed)
+	{
+		// Read mesh index
+		memcpy(&localMesh, (char*)buffer + localTail, sizeof(int));
+		localTail += sizeof(int);
+
+		// Move tail
+		cb->tail += slotSize;
+		cb->freeMem += slotSize;
+	}
 }
 
 void SharedMemory::TempMesh()
 {
 	// CUBE
 	meshes.push_back(MeshData());
-	meshes[0].vertexData.resize(6);
+	//meshes[0].vertexData.resize(6);
 
 	meshes[0].vertexData[0].pos = XMFLOAT3(-0.5, -0.5, 0.0);
 	meshes[0].vertexData[1].pos = XMFLOAT3(-0.5, 0.5, 0.0);
@@ -209,9 +220,4 @@ void SharedMemory::TempMesh()
 	meshes[0].vertexData[4].pos = XMFLOAT3(-0.5, 0.5, 0.0);
 	meshes[0].vertexData[5].pos = XMFLOAT3(0.5, 0.5, 0.0);
 	meshes[0].vertexCount = 6;
-}
-
-void SharedMemory::Update()
-{
-
 }

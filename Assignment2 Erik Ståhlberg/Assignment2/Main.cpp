@@ -7,6 +7,7 @@ void GetSceneData();
 void GetMeshInformation(MFnMesh& mesh);
 void MeshCreationCB(MObject& node, void* clientData);
 void MeshChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& otherPlug, void* clientData);
+void VertexChanged(MPlug& plug);
 
 void TransformCreationCB(MObject& object, void* clientData);
 void TransformChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& otherPlug, void* clientData);
@@ -335,6 +336,7 @@ void MeshCreationCB(MObject& object, void* clientData)
 	// Add a callback specifik to every new mesh that are created
 	callbackIds.append(MNodeMessage::addAttributeChangedCallback(object, MeshChangedCB));
 	callbackIds.append(MNodeMessage::addNameChangedCallback(object, NameChangedCB));
+	callbackIds.append(MNodeMessage::addNodeAboutToDeleteCallback(object, NodeDestroyedCB));
 }
 
 void MeshChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& otherPlug, void* clientData)
@@ -541,82 +543,85 @@ void MeshChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& other
 	}
 	// Vertex has changed
 	else if (strstr(plug.partialName().asChar(), "pt["))
+		VertexChanged(plug);
+}
+
+void VertexChanged(MPlug& plug)
+{
+	MFnMesh mesh(plug.node());
+	MPoint point;
+	mesh.getPoint(plug.logicalIndex(), point);
+	MGlobal::displayInfo(MString("Vertex ID: ") + plug.logicalIndex() + " " + point.x + " " + point.y + " " + point.z);
+	unsigned int vtxIndex = plug.logicalIndex();
+	XMFLOAT3 position(point.x, point.y, point.z);
+
+	//MVectorArray vertexList;
+	MFloatArray vertexList;
+	int vertexPoint[3];
+	MIntArray triangleCounts;
+	MIntArray triangleVertices;
+	mesh.getTriangles(triangleCounts, triangleVertices);
+
+	for (size_t i = 0; i < mesh.numPolygons(); i++)
 	{
-		MFnMesh mesh(plug.node());
-		MPoint point;
-		mesh.getPoint(plug.logicalIndex(), point);
-		MGlobal::displayInfo(MString("Vertex ID: ") + plug.logicalIndex() + " " + point.x + " " + point.y + " " + point.z);
-		unsigned int vtxIndex = plug.logicalIndex();
-		XMFLOAT3 position(point.x, point.y, point.z);
-
-		//MVectorArray vertexList;
-		MFloatArray vertexList;
-		int vertexPoint[3];
-		MIntArray triangleCounts;
-		MIntArray triangleVertices;
-		mesh.getTriangles(triangleCounts, triangleVertices);
-
-		for (size_t i = 0; i < mesh.numPolygons(); i++)
+		for (size_t j = 0; j < triangleCounts[i]; j++)
 		{
-			for (size_t j = 0; j < triangleCounts[i]; j++)
-			{
-				mesh.getPolygonTriangleVertices(i, j, vertexPoint);
+			mesh.getPolygonTriangleVertices(i, j, vertexPoint);
 
-				// Vertex 0 in triangle:
-				mesh.getPoint(vertexPoint[0], point);
-				vertexList.append(point.x);
-				vertexList.append(point.y);
-				vertexList.append(point.z);
+			// Vertex 0 in triangle:
+			mesh.getPoint(vertexPoint[0], point);
+			vertexList.append(point.x);
+			vertexList.append(point.y);
+			vertexList.append(point.z);
 
-				// Vertex 1 in triangle:
-				mesh.getPoint(vertexPoint[1], point);
-				vertexList.append(point.x);
-				vertexList.append(point.y);
-				vertexList.append(point.z);
+			// Vertex 1 in triangle:
+			mesh.getPoint(vertexPoint[1], point);
+			vertexList.append(point.x);
+			vertexList.append(point.y);
+			vertexList.append(point.z);
 
-				// Vertex 2 in triangle:
-				mesh.getPoint(vertexPoint[2], point);
-				vertexList.append(point.x);
-				vertexList.append(point.y);
-				vertexList.append(point.z);
-			}
+			// Vertex 2 in triangle:
+			mesh.getPoint(vertexPoint[2], point);
+			vertexList.append(point.x);
+			vertexList.append(point.y);
+			vertexList.append(point.z);
 		}
-
-		unsigned int meshIndex = meshNames.length();
-		for (size_t i = 0; i < meshNames.length(); i++)
-		{
-			if (meshNames[i] == mesh.name())
-				meshIndex = i;
-		}
-
-		// Send data to shared memory
-		do
-		{
-			if (sm.cb->freeMem >= slotSize)
-			{
-				localHead = sm.cb->head;
-
-				// Message header
-				sm.msgHeader.type = TVertexUpdate;
-				sm.msgHeader.padding = slotSize - ((sizeof(float)* vertexList.length()) + sm.msgHeaderSize + sizeof(int)) % slotSize;
-				memcpy((char*)sm.buffer + localHead, &sm.msgHeader, sm.msgHeaderSize);
-				localHead += sm.msgHeaderSize;
-
-				// Mesh index
-				memcpy((char*)sm.buffer + localHead, &meshIndex, sizeof(int));
-				localHead += sizeof(int);
-
-				// Vertex data
-				memcpy((char*)sm.buffer + localHead, &vertexList, sizeof(float) * vertexList.length());
-				localHead += sizeof(float) * vertexList.length();
-
-				// Move header
-				sm.cb->freeMem -= (localHead - sm.cb->head) + sm.msgHeader.padding;
-				sm.cb->head += (localHead - sm.cb->head) + sm.msgHeader.padding;
-				break;
-			}
-		} while (sm.cb->freeMem > !slotSize);
 	}
+
+	unsigned int meshIndex = meshNames.length();
+	for (size_t i = 0; i < meshNames.length(); i++)
+	{
+		if (meshNames[i] == mesh.name())
+			meshIndex = i;
+	}
+
+	// Send data to shared memory
+	do
+	{
+		if (sm.cb->freeMem >= slotSize)
+		{
+			localHead = sm.cb->head;
+
+			// Message header
+			sm.msgHeader.type = TVertexUpdate;
+			sm.msgHeader.padding = slotSize - ((sizeof(float)* vertexList.length()) + sm.msgHeaderSize + sizeof(int)) % slotSize;
+			memcpy((char*)sm.buffer + localHead, &sm.msgHeader, sm.msgHeaderSize);
+			localHead += sm.msgHeaderSize;
+
+			// Mesh index
+			memcpy((char*)sm.buffer + localHead, &meshIndex, sizeof(int));
+			localHead += sizeof(int);
+
+			// Vertex data
+			memcpy((char*)sm.buffer + localHead, &vertexList, sizeof(float) * vertexList.length());
+			localHead += sizeof(float) * vertexList.length();
+
+			// Move header
+			sm.cb->freeMem -= (localHead - sm.cb->head) + sm.msgHeader.padding;
+			sm.cb->head += (localHead - sm.cb->head) + sm.msgHeader.padding;
+			break;
+		}
+	} while (sm.cb->freeMem > !slotSize);
 }
 
 

@@ -25,8 +25,6 @@ public:
 	SharedMemory();
 	~SharedMemory();
 
-	void Update();
-
 	void OpenMemory(size_t size);
 	int ReadMSGHeader();
 	void ReadMemory(unsigned int type);
@@ -66,7 +64,7 @@ public:
 	};
 	struct MeshData
 	{
-		vector<VertexData> vertexData;
+		VertexData* vertexData;
 		unsigned int vertexCount;
 		vector<unsigned int> idList;
 		XMFLOAT4X4* transform;
@@ -120,8 +118,6 @@ public:
 	};
 	vector<Lights> lights;
 	int localLight;
-
-	// Material
 };
 
 #endif
