@@ -139,6 +139,8 @@ void SharedMemory::ReadMemory(unsigned int type)
 	{
 		// Read updated data and store vertexbuffer
 	}
+	else if (type == TVertexUpdate)
+	{
 		localTail += sizeof(int);
 		// Vertex index
 		memcpy(&localVertex, (char*)buffer + localTail, sizeof(int));
@@ -149,6 +151,7 @@ void SharedMemory::ReadMemory(unsigned int type)
 		// Move tail
 		cb->tail += slotSize;
 		cb->freeMem += slotSize;
+	}
 	else if (type == TCameraUpdate)
 	{
 		// Read and store camera

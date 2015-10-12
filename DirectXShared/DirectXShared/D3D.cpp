@@ -91,10 +91,12 @@ void D3D::Update()
 		meshes.back().transformBuffer = CreateConstantBuffer(sizeof(XMFLOAT4X4), meshes.back().transform);
 		meshes.back().colorBuffer = CreateConstantBuffer(sizeof(XMFLOAT4), meshes.back().materialColor);
 	}
+	else if (smType == TVertexUpdate)
+	{
+		ReadMemory(smType);
 
-
-		devcon->Map(meshes[localMesh].meshesBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapSub);
-		(VertexData*)meshes[localMesh].vertexData[0] = (VertexData*)mapSub.pData;
+		devcon->Map(viewMatrix, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapSub);
+		view = (XMFLOAT4X4*)mapSub.pData;
 
 		for (size_t i = 0; i < meshes[localMesh].vertexCount; i++)
 		{
@@ -105,6 +107,7 @@ void D3D::Update()
 		}
 
 		devcon->Unmap(meshes[localMesh].meshesBuffer, 0);
+	}
 	else if (smType == TCameraUpdate)
 	{
 		// View
@@ -154,7 +157,7 @@ void D3D::Update()
 	{
 		// View
 		ReadMemory(smType);
-		devcon->Map(lights.back().lightBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &camMapSub);
+		devcon->Map(lights.back().lightBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapSub);
 
 		if (localLight == 0)
 		{
