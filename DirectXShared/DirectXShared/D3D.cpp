@@ -122,10 +122,32 @@ void D3D::Update()
 		view = (XMFLOAT4X4*)mapSub.pData;
 		ReadMemory(smType);
 
-		XMStoreFloat4x4(view, XMMatrixTranspose(XMMatrixLookAtLH(
-			XMVectorSet(cameraData->pos[0], cameraData->pos[1], -cameraData->pos[2], 0.0f),
-			XMVectorSet(cameraData->view[0], cameraData->view[1], -cameraData->view[2], 0.0f),
-			XMVectorSet(cameraData->up[0], cameraData->up[1], cameraData->up[2], 0.0f))));
+		//XMStoreFloat4x4(view, XMMatrixTranspose(XMMatrixLookAtLH(
+		//	XMVectorSet(cameraData->pos[0], cameraData->pos[1], -cameraData->pos[2], 0.0f),
+		//	XMVectorSet(cameraData->view[0], cameraData->view[1], -cameraData->view[2], 0.0f),
+		//	XMVectorSet(cameraData->up[0], cameraData->up[1], cameraData->up[2], 0.0f))));
+
+		view->_11 = testViewMatrix->_11;
+		view->_12 = testViewMatrix->_12;
+		view->_13 = testViewMatrix->_13;
+		view->_14 = testViewMatrix->_14;
+
+		view->_21 = testViewMatrix->_21;
+		view->_22 = testViewMatrix->_22;
+		view->_23 = testViewMatrix->_23;
+		view->_24 = testViewMatrix->_24;
+
+		view->_31 = testViewMatrix->_31;
+		view->_32 = testViewMatrix->_32;
+		view->_33 = testViewMatrix->_33;
+		view->_34 = testViewMatrix->_34;
+
+		view->_41 = testViewMatrix->_41;
+		view->_42 = testViewMatrix->_42;
+		view->_43 = testViewMatrix->_43;
+		view->_44 = testViewMatrix->_44;
+
+		//XMStoreFloat4x4(view, XMMatrixTranspose(XMMatrixLookAtLH(XMVectorSet(0.0f, 2.0f, -2.0f, 0.0f), XMVectorSet(0.0f, -1.0f, 1.0f, 0.0f), XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f))));
 
 		devcon->Unmap(viewMatrix, 0);
 
@@ -240,8 +262,8 @@ void D3D::Render()
 void D3D::Create()
 {
 	// CAMERA
-	XMStoreFloat4x4(view, XMMatrixTranspose(XMMatrixLookAtLH(XMVectorSet(0.0f, 2.0f, -2.0f, 0.0f), XMVectorSet(0.0f, -1.0f, 1.0f, 0.0f), XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f))));
-	XMStoreFloat4x4(projection, XMMatrixTranspose(XMMatrixPerspectiveFovLH(XM_PI * 0.45f, 640.0f / 480.0f, 0.1f, 500.0f)));
+	XMStoreFloat4x4(view, XMMatrixTranspose(XMMatrixLookAtLH(XMVectorSet(0.0f, 2.0f, -2.0f, 0.0f), XMVectorSet(0.0f, -0.5f, 0.5f, 0.0f), XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f))));
+	XMStoreFloat4x4(projection, XMMatrixTranspose(XMMatrixPerspectiveFovLH(XM_PI * 0.45f, 640.0f / 480.0f, 1.0f, 100.0f)));
 	viewMatrix = CreateConstantBuffer(sizeof(XMFLOAT4X4), view);
 	projectionMatrix = CreateConstantBuffer(sizeof(XMFLOAT4X4), projection);
 

@@ -106,6 +106,7 @@ public:
 		double view[3];
 		double up[3];
 	}*cameraData;
+	XMFLOAT4X4* testViewMatrix;
 
 	//LIGHT
 	vector<string> lightNames;

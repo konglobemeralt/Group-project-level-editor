@@ -7,6 +7,7 @@ SharedMemory::SharedMemory()
 	cameraData = new CameraData();
 	view = new XMFLOAT4X4();
 	projection = new XMFLOAT4X4();
+	testViewMatrix = new XMFLOAT4X4();
 }
 
 SharedMemory::~SharedMemory()
@@ -157,6 +158,10 @@ void SharedMemory::ReadMemory(unsigned int type)
 		localTail += sizeof(double)* 3;
 		memcpy(&cameraData->up, (char*)buffer + localTail, sizeof(double)* 3);
 		localTail += sizeof(double)* 3;
+
+		// View matrix
+		memcpy(testViewMatrix, (char*)buffer + localTail, sizeof(XMFLOAT4X4));
+		localTail += sizeof(XMFLOAT4X4);
 
 		// Projection matrix
 		memcpy(&projectionTemp, (char*)buffer + localTail, sizeof(XMFLOAT4X4));
