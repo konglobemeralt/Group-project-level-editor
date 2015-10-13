@@ -87,25 +87,33 @@ void D3D::Update()
 	if (smType == TMeshCreate)
 	{
 		ReadMemory(smType);
-		meshes.back().meshesBuffer = CreateMesh(vertexSize * meshes.back().vertexCount, meshes.back().vertexData, meshes.back().vertexCount);
+		meshes.back().meshesBuffer[0] = CreateMesh(12 * meshes.back().vertexCount, meshes.back().pos, meshes.back().vertexCount);
+		meshes.back().meshesBuffer[1] = CreateMesh(8 * meshes.back().vertexCount, meshes.back().uv, meshes.back().vertexCount);
+		meshes.back().meshesBuffer[2] = CreateMesh(12 * meshes.back().vertexCount, meshes.back().normal, meshes.back().vertexCount);
 		meshes.back().transformBuffer = CreateConstantBuffer(sizeof(XMFLOAT4X4), meshes.back().transform);
 		meshes.back().colorBuffer = CreateConstantBuffer(sizeof(XMFLOAT4), meshes.back().materialColor);
 	}
 	else if (smType == TVertexUpdate)
 	{
 		ReadMemory(smType);
-		devcon->Map(meshes[localMesh].meshesBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapSub);
-		meshes[localMesh].vertexData = (VertexData*)mapSub.pData;
+
+		devcon->Map(meshes[localMesh].meshesBuffer[0], 0, D3D11_MAP_WRITE_DISCARD, 0, &mapSub);
+		meshes[localMesh].pos = (XMFLOAT3*)mapSub.pData;
 
 		// Vertex data
-		memcpy(meshes[localMesh].vertexData, (char*)buffer + localTail, meshes[localMesh].vertexCount * sizeof(XMFLOAT3));
+		memcpy(meshes[localMesh].pos, (char*)buffer + localTail, meshes[localMesh].vertexCount * sizeof(XMFLOAT3));
 		localTail += meshes[localMesh].vertexCount * sizeof(XMFLOAT3);
+
+		for (size_t i = 0; i < meshes[localMesh].vertexCount; i++)
+		{
+
+		}
 
 		// Move tail
 		cb->freeMem += (localTail - cb->tail) + msgHeader.padding;
 		cb->tail += (localTail - cb->tail) + msgHeader.padding;
 
-		devcon->Unmap(meshes[localMesh].meshesBuffer, 0);
+		devcon->Unmap(meshes[localMesh].meshesBuffer[0], 0);
 	}
 	else if (smType == TCameraUpdate)
 	{
@@ -176,11 +184,10 @@ void D3D::Update()
 	}
 	else if (smType == TNodeDestroyed)
 	{
-		localTail;
 		ReadMemory(smType);
 
 		// Delete mesh with the given index
-		delete[] meshes[localMesh].vertexData;
+		/*delete[] meshes[localMesh].vertexData;
 		delete meshes[localMesh].transform;
 		delete meshes[localMesh].materialColor;
 
@@ -191,6 +198,10 @@ void D3D::Update()
 		meshes[localMesh].transformBuffer->Release();
 		meshes[localMesh].colorBuffer->Release();
 
+		meshes[localMesh].meshesBuffer = NULL;
+		meshes[localMesh].transformBuffer = NULL;
+		meshes[localMesh].colorBuffer = NULL;
+*/
 	}
 }
 
@@ -219,7 +230,7 @@ void D3D::Render()
 			devcon->VSSetConstantBuffers(0, 1, &meshes[i].transformBuffer);
 			devcon->PSSetConstantBuffers(1, 1, &meshes[i].colorBuffer);
 			devcon->PSSetShaderResources(0, 1, &meshTextures[i]);
-			devcon->IASetVertexBuffers(0, 1, &meshes[i].meshesBuffer, &vertexSize, &offset);
+			devcon->IASetVertexBuffers(0, 3, meshes[i].meshesBuffer, strides, offsets);
 			devcon->Draw(meshes[0].vertexCount, 0);
 		}
 	}
@@ -261,7 +272,7 @@ ID3D11Buffer* D3D::CreateMesh(size_t size, const void* data, size_t vertexCount)
 	VBdata.SysMemPitch = 0;
 	VBdata.SysMemSlicePitch = 0;
 
-	device->CreateBuffer(&vertexBufferDesc, &VBdata, &vertexBuffer);
+device->CreateBuffer(&vertexBufferDesc, &VBdata, &vertexBuffer);
 	return vertexBuffer;
 }
 
@@ -304,9 +315,9 @@ void D3D::CreateShaders()
 	//create input layout (verified using vertex shader)
 	D3D11_INPUT_ELEMENT_DESC inputDesc[] = {
 		{ "SV_POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-		{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 1, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 2, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		//{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 3, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
 	};
 	device->CreateInputLayout(inputDesc, 3, pVS->GetBufferPointer(), pVS->GetBufferSize(), &inputLayout);
 	pVS->Release();

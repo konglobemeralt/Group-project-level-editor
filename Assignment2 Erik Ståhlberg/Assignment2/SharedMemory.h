@@ -7,6 +7,7 @@
 #include <windows.h>
 #include <DirectXMath.h>
 #include "Enumerations.h"
+#include <fstream>
 
 using namespace std;
 using namespace DirectX;
@@ -47,13 +48,10 @@ public:
 	void* buffer;
 
 	// MESHES
-	struct VertexData
-	{
-		XMFLOAT3 pos;
-		XMFLOAT2 uv;
-		XMFLOAT3 normal;
-	};
-	vector<VertexData> vertexData;
+	vector<XMFLOAT3> pos;
+	vector<XMFLOAT2> uv;
+	vector<XMFLOAT3> normal;
+	vector<XMFLOAT3> vertices;
 
 	// Camera
 	unsigned camDataSize;

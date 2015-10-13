@@ -17,6 +17,7 @@ struct VS_IN
 	float3 Pos : SV_POSITION;
 	float2 Tex : TEXCOORD;
 	float3 Normal : NORMAL;
+	//float3 Pos2 : POSITION;
 };
 
 struct VS_OUT

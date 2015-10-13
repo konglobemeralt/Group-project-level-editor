@@ -43,8 +43,8 @@ private:
 	ID3D11VertexShader* vertexShader;
 	ID3D11PixelShader* pixelShader;
 
-	UINT32 vertexSize = sizeof(float)* 8;
-	UINT32 offset = 0;
+	unsigned int strides[3] = { 12, 8, 12 };
+	unsigned int offsets[3] = { 0,0,0 };
 
 	// Shared memory
 	//SharedMemory sm;

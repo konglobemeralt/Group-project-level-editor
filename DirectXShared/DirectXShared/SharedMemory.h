@@ -9,6 +9,7 @@
 #include <iostream>
 #include <windows.h>
 #include "Enumerations.h"
+#include <fstream>
 
 using namespace DirectX;
 using namespace std;
@@ -64,11 +65,13 @@ public:
 	};
 	struct MeshData
 	{
-		VertexData* vertexData;
+		//VertexData* vertexData;
+		XMFLOAT3* pos;
+		XMFLOAT2* uv;
+		XMFLOAT3* normal;
 		unsigned int vertexCount;
-		vector<unsigned int> idList;
 		XMFLOAT4X4* transform;
-		ID3D11Buffer* meshesBuffer;
+		ID3D11Buffer* meshesBuffer[3];
 		ID3D11Buffer* transformBuffer;
 
 		//Material:
