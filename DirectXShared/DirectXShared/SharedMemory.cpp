@@ -180,6 +180,7 @@ void SharedMemory::ReadMemory(unsigned int type)
 		lights.push_back(Lights());
 		lights.back ().lightData = new LightData ();
 
+		// Light data
 		memcpy (&lights.back ().lightData->pos, (char*) buffer + localTail, sizeof(XMFLOAT3));
 		localTail += sizeof(XMFLOAT3);
 		memcpy (&lights.back ().lightData->color, (char*) buffer + localTail, sizeof(XMFLOAT4));
@@ -188,7 +189,7 @@ void SharedMemory::ReadMemory(unsigned int type)
 		cb->tail += slotSize;
 		cb->freeMem += slotSize;
 	}
-	else if (type == TNodeDestroyed)
+	else if (type == TMeshDestroyed)
 	{
 		localTail = cb->tail + sizeof(MSGHeader);
 		// Read mesh index

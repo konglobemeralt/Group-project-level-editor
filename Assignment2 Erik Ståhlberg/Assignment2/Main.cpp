@@ -40,6 +40,7 @@ SharedMemory sm;
 unsigned int localHead;
 unsigned int slotSize;
 MStringArray meshNames;
+MStringArray lightNames;
 
 EXPORT MStatus initializePlugin(MObject obj)
 {
@@ -115,6 +116,7 @@ void GetSceneData()
 		GetLightInformation (light);
 		callbackIds.append (MNodeMessage::addAttributeChangedCallback (light.object (), LightChangedCB));
 		callbackIds.append (MNodeMessage::addAttributeChangedCallback (light.parent (0), LightChangedCB));
+		callbackIds.append (MNodeMessage::addNodeAboutToDeleteCallback (light.object (), NodeDestroyedCB));
 		itLight.next ();
 	}
 
@@ -835,6 +837,7 @@ void CameraChanged(MFnTransform& transform, MFnCamera& camera)
 	}
 }
 
+
 void GetLightInformation (MFnLight& light)
 {
 	callbackIds.append (MNodeMessage::addAttributeChangedCallback (light.object(), LightChangedCB));
@@ -888,8 +891,10 @@ void GetLightInformation (MFnLight& light)
 
 void LightCreationCB(MObject& lightObject, void* clientData)
 {
+	MFnLight light (lightObject);
+	lightNames.append (light.name());
+
 	callbackIds.append(MNodeMessage::addAttributeChangedCallback(lightObject, LightChangedCB));
-	MFnLight light(lightObject);
 	MObject dad = light.parent(0);
 	callbackIds.append (MNodeMessage::addAttributeChangedCallback (dad, LightChangedCB));
 
@@ -976,6 +981,18 @@ void LightChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& othe
 		MGlobal::displayInfo (MString () + "Position: " + positionF.x + " " + positionF.y + " " + positionF.z);
 		MGlobal::displayInfo (MString () + "Color: " + color.r + " " + color.g + " " + color.b + " " + color.a);
 
+		unsigned int lightIndex = INT_MAX;
+		for (size_t i = 0; i < lightNames.length (); i++)
+		{
+			MGlobal::displayInfo (lightNames[i]);
+			MGlobal::displayInfo (light.name());
+			if (lightNames [i] == light.name ())
+			{
+				lightIndex = i;
+			}
+		}
+		lightIndex = 0; // Remove this later to support multiple lights
+
 		do
 		{
 			if (sm.cb->freeMem > slotSize)
@@ -988,6 +1005,11 @@ void LightChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& othe
 				memcpy ((char*) sm.buffer + localHead, &sm.msgHeader, sm.msgHeaderSize);
 				localHead += sm.msgHeaderSize;
 
+				// Light index
+				memcpy ((char*) sm.buffer + localHead, &lightIndex, sizeof(int));
+				localHead += sizeof(int);
+
+				// Light data
 				memcpy ((char*) sm.buffer + localHead, &positionF, sizeof(XMFLOAT3));
 				localHead += sizeof(XMFLOAT3);
 				memcpy ((char*) sm.buffer + localHead, &color, sizeof(MColor));
@@ -1027,26 +1049,40 @@ void TimerCB(float elapsedTime, float lastTime, void* clientData)
 
 void NodeDestroyedCB(MObject& object, MDGModifier& modifier, void* clientData)
 {
-	MFnMesh mesh(object);
-	unsigned int meshIndex = meshNames.length();
-	for (size_t i = 0; i < meshNames.length(); i++)
-	{
-		if (meshNames[i] == mesh.name())
-		{
-			meshIndex = i;
-		}
-	}
-
 	localHead = sm.cb->head;
-	// Message header
-	sm.msgHeader.type = TNodeDestroyed;
-	sm.msgHeader.padding = slotSize - sm.msgHeaderSize - sizeof(int);
-	memcpy((char*)sm.buffer + localHead, &sm.msgHeader, sm.msgHeaderSize);
-	localHead += sm.msgHeaderSize;
+	if (object.hasFn (MFn::kMesh))
+	{
+		MFnMesh mesh (object);
+		unsigned int meshIndex = meshNames.length ();
+		for (size_t i = 0; i < meshNames.length (); i++)
+		{
+			if (meshNames [i] == mesh.name ())
+			{
+				meshIndex = i;
+			}
+		}
 
-	// Node index
-	memcpy((char*)sm.buffer + localHead, &meshIndex, sizeof(int));
-	localHead += sizeof(int);
+
+		// Message header
+		sm.msgHeader.type = TMeshDestroyed;
+		sm.msgHeader.padding = slotSize - sm.msgHeaderSize - sizeof(int);
+		memcpy ((char*) sm.buffer + localHead, &sm.msgHeader, sm.msgHeaderSize);
+		localHead += sm.msgHeaderSize;
+
+		// Node index
+		memcpy ((char*) sm.buffer + localHead, &meshIndex, sizeof(int));
+		localHead += sizeof(int);
+	}
+	else if (object.hasFn (MFn::kLight))
+	{
+		MFnLight light (object);
+
+		// Message header
+		sm.msgHeader.type = TLightDestroyed;
+		sm.msgHeader.padding = slotSize - sm.msgHeaderSize - sizeof(int);
+		memcpy ((char*) sm.buffer + localHead, &sm.msgHeader, sm.msgHeaderSize);
+		localHead += sm.msgHeaderSize;
+	}
 
 	// Move header
 	sm.cb->freeMem -= slotSize;

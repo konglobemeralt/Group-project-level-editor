@@ -104,11 +104,6 @@ void D3D::Update()
 		memcpy(meshes[localMesh].pos, (char*)buffer + localTail, meshes[localMesh].vertexCount * sizeof(XMFLOAT3));
 		localTail += meshes[localMesh].vertexCount * sizeof(XMFLOAT3);
 
-		for (size_t i = 0; i < meshes[localMesh].vertexCount; i++)
-		{
-
-		}
-
 		// Move tail
 		cb->freeMem += (localTail - cb->tail) + msgHeader.padding;
 		cb->tail += (localTail - cb->tail) + msgHeader.padding;
@@ -187,40 +182,57 @@ void D3D::Update()
 	}
 	else if (smType == TLightUpdate)
 	{
-		// Update position and color
-		devcon->Map(lights.back().lightBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapSub);
-		lights.back ().lightData = (LightData*) mapSub.pData;
+		// Light index
+		memcpy (&localLight, (char*) buffer + localTail, sizeof(int));
+		localTail += sizeof(int);
+		if (localLight < lights.size ())
+		{
+			devcon->Map (lights [localLight].lightBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapSub);
+			lights [localLight].lightData = (LightData*) mapSub.pData;
 
-		memcpy (&lights.back().lightData->pos, (char*) buffer + localTail, sizeof(XMFLOAT3));
-		localTail += sizeof(XMFLOAT3);
-		memcpy (&lights.back ().lightData->color, (char*) buffer + localTail, sizeof(XMFLOAT4));
-		localTail += sizeof(XMFLOAT4);
+			// Light data
+			memcpy (&lights [localLight].lightData->pos, (char*) buffer + localTail, sizeof(XMFLOAT3));
+			localTail += sizeof(XMFLOAT3);
+			memcpy (&lights [localLight].lightData->color, (char*) buffer + localTail, sizeof(XMFLOAT4));
+			localTail += sizeof(XMFLOAT4);
+
+			devcon->Unmap (lights [localLight].lightBuffer, 0);
+		}
 
 		cb->tail += slotSize;
 		cb->freeMem += slotSize;
-
-		devcon->Unmap(lights.back().lightBuffer, 0);
 	}
-	else if (smType == TNodeDestroyed)
+	else if (smType == TMeshDestroyed)
 	{
 		ReadMemory(smType);
 
 		// Delete mesh with the given index
-		/*delete[] meshes[localMesh].vertexData;
+		delete [] meshes [localMesh].pos;
+		delete [] meshes [localMesh].uv;
+		delete [] meshes [localMesh].normal;
 		delete meshes[localMesh].transform;
 		delete meshes[localMesh].materialColor;
 
-		meshes[localMesh].idList.clear();
-		meshes[localMesh].idList.~vector();
-
-		meshes[localMesh].meshesBuffer->Release();
+		meshes[localMesh].meshesBuffer[0]->Release();
+		meshes [localMesh].meshesBuffer [1]->Release ();
+		meshes [localMesh].meshesBuffer [2]->Release ();
 		meshes[localMesh].transformBuffer->Release();
 		meshes[localMesh].colorBuffer->Release();
 
-		meshes[localMesh].meshesBuffer = NULL;
+		meshes[localMesh].meshesBuffer[0] = NULL;
+		meshes [localMesh].meshesBuffer [1] = NULL;
+		meshes [localMesh].meshesBuffer [2] = NULL;
 		meshes[localMesh].transformBuffer = NULL;
 		meshes[localMesh].colorBuffer = NULL;
-*/
+	}
+	else if (smType == TLightDestroyed)
+	{
+		delete lights [0].lightData;
+		lights [0].lightBuffer->Release ();
+		lights [0].lightBuffer = NULL;
+
+		cb->tail += slotSize;
+		cb->freeMem += slotSize;
 	}
 }
 
@@ -242,12 +254,15 @@ void D3D::Render()
 	unsigned int offsets [3] = { 0, 0, 0 };
 
 	//Light do a 'for' later:
-	if (lights.size() > 0)
-		devcon->PSSetConstantBuffers(0, 1, &lights.back().lightBuffer);
+	if (lights.size () > 0)
+	{
+		if (lights[0].lightBuffer != NULL)
+			devcon->PSSetConstantBuffers (0, lights.size (), &lights.back ().lightBuffer);
+	}
 
 	for (size_t i = 0; i < meshes.size(); i++)
 	{
-		if (meshes[i].meshesBuffer != NULL)
+		if (meshes[i].meshesBuffer[0] != NULL)
 		{
 			devcon->VSSetConstantBuffers(0, 1, &meshes[i].transformBuffer);
 			devcon->PSSetConstantBuffers(1, 1, &meshes[i].colorBuffer);
