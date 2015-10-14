@@ -178,19 +178,15 @@ void SharedMemory::ReadMemory(unsigned int type)
 	else if (type == TLightCreate)
 	{
 		lights.push_back(Lights());
+		lights.back ().lightData = new LightData ();
 
-		memcpy (&lights.back ().lightData.pos, (char*) buffer + localTail, sizeof(XMFLOAT3));
+		memcpy (&lights.back ().lightData->pos, (char*) buffer + localTail, sizeof(XMFLOAT3));
 		localTail += sizeof(XMFLOAT3);
-		memcpy (&lights.back ().lightData.color, (char*) buffer + localTail, sizeof(XMFLOAT4));
+		memcpy (&lights.back ().lightData->color, (char*) buffer + localTail, sizeof(XMFLOAT4));
 		localTail += sizeof(XMFLOAT4);
 
 		cb->tail += slotSize;
 		cb->freeMem += slotSize;
-	}
-	else if (type == TLightUpdate)
-	{
-		memcpy(&localLight, (char*)buffer + localTail, sizeof(int));
-		localTail += sizeof(int);
 	}
 	else if (type == TNodeDestroyed)
 	{

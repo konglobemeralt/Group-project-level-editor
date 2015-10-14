@@ -165,44 +165,41 @@ void D3D::Update()
 	{
 		// View
 		ReadMemory(smType);
-		devcon->Map(meshes[localMesh].transformBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapSub);
-		meshes[localMesh].transform = (XMFLOAT4X4*)mapSub.pData;
+		if (localMesh < meshes.size ())
+		{
+			devcon->Map (meshes [localMesh].transformBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapSub);
+			meshes [localMesh].transform = (XMFLOAT4X4*) mapSub.pData;
 
-		memcpy(meshes[localMesh].transform, (char*)buffer + localTail, sizeof(XMFLOAT4X4));
-		localTail += sizeof(XMFLOAT4X4);
+			memcpy (meshes [localMesh].transform, (char*) buffer + localTail, sizeof(XMFLOAT4X4));
+			localTail += sizeof(XMFLOAT4X4);
+
+			devcon->Unmap (meshes [localMesh].transformBuffer, 0);
+		}
 
 		// Move tail
 		cb->tail += slotSize;
 		cb->freeMem += slotSize;
-
-		devcon->Unmap(meshes[localMesh].transformBuffer, 0);
 	}
 	else if (smType == TLightCreate)
 	{
 		ReadMemory(smType);
-		lights.back ().lightBuffer = CreateConstantBuffer (sizeof(LightData), &lights.back ().lightData);
+		lights.back ().lightBuffer = CreateConstantBuffer (sizeof(LightData), lights.back ().lightData);
 	}
 	else if (smType == TLightUpdate)
 	{
-		//// View
-		//ReadMemory(smType);
-		//devcon->Map(lights.back().lightBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapSub);
+		// Update position and color
+		devcon->Map(lights.back().lightBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapSub);
+		lights.back ().lightData = (LightData*) mapSub.pData;
 
-		//if (localLight == 0)
-		//{
-		//	memcpy(&lights.back().lightData->color, (char*)buffer + localTail, sizeof(XMFLOAT4));
-		//	localTail += sizeof(XMFLOAT4);
-		//}
-		//else if (localLight == 1)
-		//{
-		//	memcpy(&lights.back().lightData->pos, (char*)buffer + localTail, sizeof(XMFLOAT3));
-		//	localTail += sizeof(XMFLOAT3);
-		//}
+		memcpy (&lights.back().lightData->pos, (char*) buffer + localTail, sizeof(XMFLOAT3));
+		localTail += sizeof(XMFLOAT3);
+		memcpy (&lights.back ().lightData->color, (char*) buffer + localTail, sizeof(XMFLOAT4));
+		localTail += sizeof(XMFLOAT4);
 
-		//cb->tail += slotSize;
-		//cb->freeMem += slotSize;
+		cb->tail += slotSize;
+		cb->freeMem += slotSize;
 
-		//devcon->Unmap(lights.back().lightBuffer, 0);
+		devcon->Unmap(lights.back().lightBuffer, 0);
 	}
 	else if (smType == TNodeDestroyed)
 	{

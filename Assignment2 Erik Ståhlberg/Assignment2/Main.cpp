@@ -15,6 +15,7 @@ void TransformChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& 
 void CameraCreationCB(MObject& object, void* clientData);
 void CameraChanged(MFnTransform& transform, MFnCamera& camera);
 
+void GetLightInformation (MFnLight& light);
 void LightCreationCB(MObject& lightObject, void* clientData);
 void LightChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& otherPlug, void* clientData);
 
@@ -106,6 +107,17 @@ void GetSceneData()
 		itTransform.next();
 	}
 
+	// Lights
+	MItDag itLight (MItDag::kDepthFirst, MFn::kLight);
+	while (!itLight.isDone ())
+	{
+		MFnLight light (itLight.item());
+		GetLightInformation (light);
+		callbackIds.append (MNodeMessage::addAttributeChangedCallback (light.object (), LightChangedCB));
+		callbackIds.append (MNodeMessage::addAttributeChangedCallback (light.parent (0), LightChangedCB));
+		itLight.next ();
+	}
+
 	MItDag itCamera(MItDag::kDepthFirst, MFn::kCamera);
 	while (!itCamera.isDone())
 	{
@@ -114,14 +126,6 @@ void GetSceneData()
 
 		callbackIds.append(MNodeMessage::addNameChangedCallback(camera.object(), NameChangedCB));
 		itCamera.next();
-
-		//if (i == 0)
-		//{
-		//	MPoint eye = camera.eyePoint (MSpace::kWorld);
-		//	MVector camTranslations (eye);
-		//	camFix = camTranslations;
-		//}
-		//i++;
 	}
 	i = 0;
 
@@ -310,7 +314,7 @@ void GetMeshInformation(MFnMesh& mesh)
 		if (meshSize > 0)
 		{
 			sm.msgHeader.type = TMeshCreate;
-			sm.msgHeader.padding = ((meshSize * sizeof(float) * 8) - sm.msgHeaderSize - sizeof(XMFLOAT4X4) - sizeof(int) - sizeof(MColor)) % slotSize;
+			sm.msgHeader.padding = slotSize - ((meshSize * sizeof(float) * 8) + sm.msgHeaderSize + sizeof(XMFLOAT4X4) +sizeof(int) +sizeof(MColor)) % slotSize;
 			//do
 			//{
 			//	if (sm.cb->freeMem > ((meshSize * sizeof(float) * 8) - sm.msgHeaderSize - sizeof(XMFLOAT4X4) - sizeof(int)) + sm.msgHeader.padding)
@@ -325,7 +329,7 @@ void GetMeshInformation(MFnMesh& mesh)
 			localHead += sizeof(int);
 
 			// Vertex data
-			memcpy((char*)sm.buffer + localHead, sm.pos.data(), sizeof(XMFLOAT3));
+			memcpy ((char*) sm.buffer + localHead, sm.pos.data (), sizeof(XMFLOAT3) * sm.pos.size ());
 			localHead += sizeof(XMFLOAT3) * sm.pos.size();
 			memcpy((char*)sm.buffer + localHead, sm.uv.data(), sizeof(XMFLOAT2) * sm.uv.size());
 			localHead += sizeof(XMFLOAT2) * sm.uv.size();
@@ -657,7 +661,7 @@ void TransformChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& 
 
 			MStatus res;
 
-			unsigned int localMesh;
+			unsigned int localMesh = INT_MAX;
 
 			for (size_t i = 0; i < meshNames.length(); i++)
 			{
@@ -683,21 +687,21 @@ void TransformChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& 
 			plugValue = transform.findPlug("rz");
 			plugValue.getValue(rz);
 
-			//DirectX::XMVECTOR translationV = XMVectorSet(translation.x, translation.y, -translation.z, 1.0f);
-			//DirectX::XMVECTOR rotationV = XMVectorSet(rotation[0], rotation[1], rotation[2], 0.0f);
-			//DirectX::XMVECTOR scaleV = XMVectorSet(scale[0], scale[1], scale[2], 0.0f);
-			//XMVECTOR zero = XMVectorSet(0.0f, 0.0f, 0.0f, 0.0f);
-			//XMFLOAT4X4 matrixData;
-			//XMStoreFloat4x4(&matrixData, XMMatrixTranspose(XMMatrixAffineTransformation(scaleV, translationV, rotationV, translationV)));
-
-			DirectX::XMMATRIX translationM = DirectX::XMMatrixTranslation(translation.x, translation.y, translation.z);
-			DirectX::XMMATRIX rotationXM = DirectX::XMMatrixRotationX(rx);
-			DirectX::XMMATRIX rotationYM = DirectX::XMMatrixRotationX(ry);
-			DirectX::XMMATRIX rotationZM = DirectX::XMMatrixRotationX(rz);
-			DirectX::XMMATRIX scalingM = DirectX::XMMatrixScaling(scale[0], scale[1], scale[2]);
-
+			DirectX::XMVECTOR translationV = XMVectorSet(translation.x, translation.y, -translation.z, 1.0f);
+			DirectX::XMVECTOR rotationV = XMVectorSet(rotation[0], rotation[1], rotation[2], 0.0f);
+			DirectX::XMVECTOR scaleV = XMVectorSet(scale[0], scale[1], scale[2], 0.0f);
+			XMVECTOR zero = XMVectorSet(0.0f, 0.0f, 0.0f, 0.0f);
 			XMFLOAT4X4 matrixData;
-			XMStoreFloat4x4(&matrixData, (scalingM * rotationXM * rotationYM * rotationZM * translationM));
+			XMStoreFloat4x4(&matrixData, XMMatrixTranspose(XMMatrixAffineTransformation(scaleV, translationV, rotationV, translationV)));
+
+			//DirectX::XMMATRIX translationM = DirectX::XMMatrixTranslation(translation.x, translation.y, translation.z);
+			//DirectX::XMMATRIX rotationXM = DirectX::XMMatrixRotationX(rx);
+			//DirectX::XMMATRIX rotationYM = DirectX::XMMatrixRotationX(ry);
+			//DirectX::XMMATRIX rotationZM = DirectX::XMMatrixRotationX(rz);
+			//DirectX::XMMATRIX scalingM = DirectX::XMMatrixScaling(scale[0], scale[1], scale[2]);
+
+			//XMFLOAT4X4 matrixData;
+			//XMStoreFloat4x4(&matrixData, (scalingM * rotationXM * rotationYM * rotationZM * translationM));
 
 			//do
 			//{
@@ -831,21 +835,63 @@ void CameraChanged(MFnTransform& transform, MFnCamera& camera)
 	}
 }
 
+void GetLightInformation (MFnLight& light)
+{
+	callbackIds.append (MNodeMessage::addAttributeChangedCallback (light.object(), LightChangedCB));
+	MObject dad = light.parent (0);
+	callbackIds.append (MNodeMessage::addAttributeChangedCallback (dad, LightChangedCB));
+
+	MColor color;
+	MVector position;
+
+	float r, b, g, a;
+
+	MStatus status;
+	if (dad.hasFn (MFn::kTransform))
+	{
+		MFnTransform lightPoint (dad);
+		position = lightPoint.getTranslation (MSpace::kObject, &status);
+	}
+	color = light.color ();
+	r = color.r;
+	b = color.b;
+	g = color.g;
+	a = color.a;
+
+	MGlobal::displayInfo (MString () + "Color: " + r + " " + b + " " + g + " " + a);
+	MGlobal::displayInfo (MString () + "Position: " + position.x + " " + position.y + " " + position.z);
+	XMFLOAT3 positionF (position.x, position.y, position.z);
+
+	//do
+	//{
+	//	if (sm.cb->freeMem > slotSize)
+	//	{
+	localHead = sm.cb->head;
+	// Message header
+	sm.msgHeader.type = TLightCreate;
+	sm.msgHeader.padding = slotSize - sm.msgHeaderSize - sizeof(MColor) -sizeof(XMFLOAT3);
+	memcpy ((char*) sm.buffer + localHead, &sm.msgHeader, sm.msgHeaderSize);
+	localHead += sm.msgHeaderSize;
+	memcpy ((char*) sm.buffer + localHead, &positionF, sizeof(XMFLOAT3));
+	localHead += sizeof(XMFLOAT3);
+	memcpy ((char*) sm.buffer + localHead, &color, sizeof(MColor));
+	localHead += sizeof(MColor);
+
+	// Move header
+	sm.cb->freeMem -= slotSize;
+	sm.cb->head += slotSize;
+
+	//		break;
+	//	}
+	//} while (sm.cb->freeMem > !slotSize);
+}
 
 void LightCreationCB(MObject& lightObject, void* clientData)
 {
 	callbackIds.append(MNodeMessage::addAttributeChangedCallback(lightObject, LightChangedCB));
-
 	MFnLight light(lightObject);
-
-	//MMatrix test;
-
-	//light.transformationMatrix();
-
 	MObject dad = light.parent(0);
-
-	MFnTransform lightPoint(dad);
-	callbackIds.append(MNodeMessage::addAttributeChangedCallback(lightPoint.object(), LightChangedCB));
+	callbackIds.append (MNodeMessage::addAttributeChangedCallback (dad, LightChangedCB));
 
 	MColor color;
 	MVector position;
@@ -855,6 +901,7 @@ void LightCreationCB(MObject& lightObject, void* clientData)
 	MStatus status;
 	if (dad.hasFn(MFn::kTransform))
 	{
+		MFnTransform lightPoint (dad);
 		position = lightPoint.getTranslation(MSpace::kObject, &status);
 		MGlobal::displayInfo(MString() + "HEJ");
 	}
@@ -894,80 +941,65 @@ void LightCreationCB(MObject& lightObject, void* clientData)
 
 void LightChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& otherPlug, void* clientData)
 {
-	MFnLight light(plug.node());
-
-	if (plug.partialName() == "cl")
+	if (msg & MNodeMessage::kAttributeSet)
 	{
-		MColor color(light.color());
-		float r, b, g, a;
+		MFnLight light;
+		MFnTransform transform;
+		XMFLOAT3 positionF;
+		MColor color;
 
-		r = color.r;
-		b = color.b;
-		g = color.g;
-		a = color.a;
+		if (plug.partialName () == "cl")
+		{
+			light.setObject (plug.node());
+			transform.setObject (light.parent(0));
 
-		MGlobal::displayInfo(MString() + "Color: " + r + " " + b + " " + g + " " + a);
+			MVector position;
+			position = transform.getTranslation (MSpace::kObject);
 
-		//do
-		//{
-		//	if (sm.cb->freeMem > slotSize)
-		//	{
-		localHead = sm.cb->head;
-		// Message header
-		unsigned int localLight = 0;
-		sm.msgHeader.type = TLightUpdate;
-		sm.msgHeader.padding = slotSize - sm.msgHeaderSize - sizeof(MColor);
-		memcpy((char*)sm.buffer + localHead, &sm.msgHeader, sm.msgHeaderSize);
-		localHead += sm.msgHeaderSize;
-		memcpy((char*)sm.buffer + localHead, &localLight, sizeof(int));
-		localHead += sizeof(int);
-		memcpy((char*)sm.buffer + localHead, &color, sizeof(MColor));
-		localHead += sizeof(MColor);
+			positionF = XMFLOAT3 (position.x, position.y, position.z);
+			color = light.color ();
+		}
+		else if (strstr (plug.partialName ().asChar (), "t") ||
+			strstr (plug.partialName ().asChar (), "r") ||
+			strstr (plug.partialName ().asChar (), "s"))
+		{
+			transform.setObject (plug.node ());
+			light.setObject (transform.child(0));
 
-		// Move header
-		sm.cb->freeMem -= slotSize;
-		sm.cb->head += slotSize;
+			MVector position;
+			position = transform.getTranslation (MSpace::kObject);
 
-		//		break;
-		//	}
-		//} while (sm.cb->freeMem > !slotSize);
-	}
-	else if (msg & MNodeMessage::kAttributeSet)
-	{
-		MFnTransform lightPoint(plug.node());
+			positionF = XMFLOAT3(position.x, position.y, position.z);
+			color = light.color ();
+		}
 
-		MVector position;
+		MGlobal::displayInfo (MString () + "Position: " + positionF.x + " " + positionF.y + " " + positionF.z);
+		MGlobal::displayInfo (MString () + "Color: " + color.r + " " + color.g + " " + color.b + " " + color.a);
 
-		position = lightPoint.getTranslation(MSpace::kObject);
+		do
+		{
+			if (sm.cb->freeMem > slotSize)
+			{
+				localHead = sm.cb->head;
+				// Message header
+				unsigned int localLight = 0;
+				sm.msgHeader.type = TLightUpdate;
+				sm.msgHeader.padding = slotSize - sm.msgHeaderSize - sizeof(MColor) -sizeof(XMFLOAT3);
+				memcpy ((char*) sm.buffer + localHead, &sm.msgHeader, sm.msgHeaderSize);
+				localHead += sm.msgHeaderSize;
 
-		MGlobal::displayInfo(MString() + "Position: " + position.x + " " + position.y + " " + position.z);
+				memcpy ((char*) sm.buffer + localHead, &positionF, sizeof(XMFLOAT3));
+				localHead += sizeof(XMFLOAT3);
+				memcpy ((char*) sm.buffer + localHead, &color, sizeof(MColor));
+				localHead += sizeof(MColor);
 
-		XMFLOAT3 positionF(position.x, position.y, position.z);
+				// Move header
+				sm.cb->freeMem -= slotSize;
+				sm.cb->head += slotSize;
 
-		//while (sm.cb->freeMem > !slotSize)
-		//{
-		//	if (sm.cb->freeMem > slotSize)
-		//	{
-
-		localHead = sm.cb->head;
-
-		unsigned int localLight = 1;
-		sm.msgHeader.type = TLightUpdate;
-		sm.msgHeader.padding = slotSize - sm.msgHeaderSize - sizeof(XMFLOAT3);
-		memcpy((char*)sm.buffer + localHead, &sm.msgHeader, sm.msgHeaderSize);
-		localHead += sm.msgHeaderSize;
-		memcpy((char*)sm.buffer + localHead, &localLight, sizeof(int));
-		localHead += sizeof(int);
-		memcpy((char*)sm.buffer + localHead, &positionF, sizeof(XMFLOAT3));
-		localHead += sizeof(XMFLOAT3);
-
-		// Move header
-		sm.cb->freeMem -= slotSize;
-		sm.cb->head += slotSize;
-
-		//		break;
-		//	}
-		//}
+				break;
+			}
+		} while (sm.cb->freeMem > !slotSize);
 	}
 }
 

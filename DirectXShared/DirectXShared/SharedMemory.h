@@ -111,7 +111,7 @@ public:
 	};
 	struct Lights
 	{
-		LightData lightData;
+		LightData* lightData;
 		ID3D11Buffer* lightBuffer;
 	};
 	vector<Lights> lights;
