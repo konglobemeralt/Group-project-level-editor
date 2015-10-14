@@ -14,7 +14,6 @@ void TransformChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& 
 
 void CameraCreationCB(MObject& object, void* clientData);
 void CameraChanged(MFnTransform& transform, MFnCamera& camera);
-void TestCameraCB(MObject& node, void* clientData);
 
 void LightCreationCB(MObject& lightObject, void* clientData);
 void LightChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& otherPlug, void* clientData);
@@ -32,8 +31,9 @@ int totalTime = 0.0f;
 
 MCallbackIdArray callbackIds;
 
-MVector camFix;
+MVector lastCamPos;
 unsigned int i = 0;
+MVector diff;
 
 SharedMemory sm;
 unsigned int localHead;
@@ -101,10 +101,6 @@ void GetSceneData()
 	while (!itTransform.isDone())
 	{
 		MFnTransform transform(itTransform.item());
-		MFnCamera camera;
-		camera.create();
-		MStatus res = transform.addChild(camera.object());
-		callbackIds.append(MNodeMessage::addNodeDirtyCallback(camera.object(), TestCameraCB));
 		callbackIds.append(MNodeMessage::addAttributeChangedCallback(transform.object(), TransformChangedCB));
 		callbackIds.append(MNodeMessage::addNameChangedCallback(transform.object(), NameChangedCB));
 		itTransform.next();
@@ -115,9 +111,28 @@ void GetSceneData()
 	{
 		MFnCamera camera(itCamera.item());
 		//GetCameraInformation(camera);
+
 		callbackIds.append(MNodeMessage::addNameChangedCallback(camera.object(), NameChangedCB));
 		itCamera.next();
+
+		//if (i == 0)
+		//{
+		//	MPoint eye = camera.eyePoint (MSpace::kWorld);
+		//	MVector camTranslations (eye);
+		//	camFix = camTranslations;
+		//}
+		//i++;
 	}
+	i = 0;
+
+	M3dView view = M3dView::active3dView ();
+	MDagPath camPath;
+	view.getCamera (camPath);
+	MFnCamera camera (camPath);
+
+	MPoint eye = camera.eyePoint (MSpace::kWorld);
+	MVector camTranslations (eye);
+	lastCamPos = camTranslations;
 }
 
 
@@ -720,8 +735,6 @@ void CameraChanged(MFnTransform& transform, MFnCamera& camera)
 	//MFnCamera camera(transform.child(0));
 	//MGlobal::displayInfo(camera.name());
 
-	int hej = transform.childCount();
-
 	MPoint eye = camera.eyePoint(MSpace::kWorld);
 	MVector camTranslations(eye);
 	MVector viewDirection = camera.viewDirection(MSpace::kWorld);
@@ -766,19 +779,19 @@ void CameraChanged(MFnTransform& transform, MFnCamera& camera)
 		test[3][0], test[3][1], test[3][2], test[3][3]);
 
 	viewDirection += camTranslations;
-	//double x = camFix.x - camTranslations.x;
-	//double y = camFix.y - camTranslations.y;
-	//double z = camFix.z - camTranslations.z;
+	diff.x = fabs (lastCamPos.x) - fabs (camTranslations.x);
+	diff.y = fabs (lastCamPos.y) - fabs (camTranslations.y);
+	diff.z = fabs (lastCamPos.z) - fabs (camTranslations.z);
 
-	//if (x < 0.01 && y < 0.01 && z < 0.01)
-	//{
-	//	camFix = camTranslations;
+	if (diff.x > 0.001 || diff.y > 0.001 || diff.z > 0.001)
+	{
+		lastCamPos = camTranslations;
 
-		//MGlobal::displayInfo(MString() + i);
-		//MGlobal::displayInfo(MString() + test[0][0] + " " + test[0][1] + " " + test[0][2] + " " + test[0][3]);
-		//MGlobal::displayInfo(MString() + test[1][0] + " " + test[1][1] + " " + test[1][2] + " " + test[1][0]);
-		//MGlobal::displayInfo(MString() + test[2][0] + " " + test[2][1] + " " + test[2][2] + " " + test[2][0]);
-		//MGlobal::displayInfo(MString() + test[3][0] + " " + test[3][1] + " " + test[3][2] + " " + test[3][0]);
+		MGlobal::displayInfo(MString() + i);
+		MGlobal::displayInfo(MString() + test[0][0] + " " + test[0][1] + " " + test[0][2] + " " + test[0][3]);
+		MGlobal::displayInfo(MString() + test[1][0] + " " + test[1][1] + " " + test[1][2] + " " + test[1][0]);
+		MGlobal::displayInfo(MString() + test[2][0] + " " + test[2][1] + " " + test[2][2] + " " + test[2][0]);
+		MGlobal::displayInfo(MString() + test[3][0] + " " + test[3][1] + " " + test[3][2] + " " + test[3][0]);
 		i++;
 
 		do
@@ -815,68 +828,7 @@ void CameraChanged(MFnTransform& transform, MFnCamera& camera)
 				break;
 			}
 		} while (sm.cb->freeMem > !slotSize);
-	//}
-}
-
-void TestCameraCB(MObject& node, void* clientData)
-{
-	M3dView view = M3dView::active3dView();
-	MDagPath camPath;
-	view.getCamera(camPath);
-	MFnCamera camera(camPath);
-
-	float test[4][4];
-	MMatrix m;
-	view.modelViewMatrix(m);
-	m.get(test);
-
-	XMFLOAT4X4 viewMatrix(
-		test[0][0], test[0][1], test[0][2], test[0][3],
-		test[1][0], test[1][1], test[1][2], test[1][3],
-		test[2][0], test[2][1], test[2][2], test[2][3],
-		test[3][0], test[3][1], test[3][2], test[3][3]);
-
-	MGlobal::displayInfo(MString() + i);
-	MGlobal::displayInfo(MString() + test[0][0] + " " + test[0][1] + " " + test[0][2] + " " + test[0][3]);
-	MGlobal::displayInfo(MString() + test[1][0] + " " + test[1][1] + " " + test[1][2] + " " + test[1][0]);
-	MGlobal::displayInfo(MString() + test[2][0] + " " + test[2][1] + " " + test[2][2] + " " + test[2][0]);
-	MGlobal::displayInfo(MString() + test[3][0] + " " + test[3][1] + " " + test[3][2] + " " + test[3][0]);
-	i++;
-
-	do
-	{
-		if (sm.cb->freeMem > slotSize)
-		{
-			//// Send data to shared memory
-			//localHead = sm.cb->head;
-			//// Message header
-			//sm.msgHeader.type = TCameraUpdate;
-			//sm.msgHeader.padding = slotSize - sm.camDataSize - sm.msgHeaderSize;
-			//memcpy((char*)sm.buffer + localHead, &sm.msgHeader, sizeof(sm.msgHeaderSize));
-			//localHead += sm.msgHeaderSize;
-
-			//// View matrix
-			//memcpy((char*)sm.buffer + localHead, &camTranslations, sizeof(MVector));
-			//localHead += sizeof(MVector);
-			//memcpy((char*)sm.buffer + localHead, &viewDirection, sizeof(MVector));
-			//localHead += sizeof(MVector);
-			//memcpy((char*)sm.buffer + localHead, &upDirection, sizeof(MVector));
-			//localHead += sizeof(MVector);
-
-			//// View matrix
-			//memcpy((char*)sm.buffer + localHead, &viewMatrix, sizeof(XMFLOAT4X4));
-			//localHead += sizeof(XMFLOAT4X4);
-
-			//// Projection matrix
-			//memcpy((char*)sm.buffer + localHead, &projection, sizeof(XMFLOAT4X4));
-
-			//// Move header
-			//sm.cb->head += slotSize;
-			//sm.cb->freeMem -= slotSize;
-
-			break;
-		}
-	} while (sm.cb->freeMem > !slotSize);
+	}
 }
 
 

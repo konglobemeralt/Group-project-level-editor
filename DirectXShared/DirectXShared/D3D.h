@@ -43,9 +43,6 @@ private:
 	ID3D11VertexShader* vertexShader;
 	ID3D11PixelShader* pixelShader;
 
-	unsigned int strides[3] = { 12, 8, 12 };
-	unsigned int offsets[3] = { 0,0,0 };
-
 	// Shared memory
 	//SharedMemory sm;
 	unsigned int smType;

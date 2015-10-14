@@ -35,7 +35,7 @@ void SharedMemory::OpenMemory(size_t size)
 		PAGE_READWRITE,
 		(DWORD)0,
 		size,
-		L"Global/CircularBuffer");
+		L"Global/CircularBuffer2");
 	if (GetLastError() == ERROR_ALREADY_EXISTS)
 		OutputDebugStringA("CircularBuffer allready exist\n");
 
@@ -65,7 +65,7 @@ void SharedMemory::OpenMemory(size_t size)
 		PAGE_READWRITE,
 		(DWORD)0,
 		size,
-		L"Global/MainData");
+		L"Global/MainData2");
 	if (GetLastError() == ERROR_ALREADY_EXISTS)
 		OutputDebugStringA("MainData allready exist\n");
 
@@ -178,11 +178,10 @@ void SharedMemory::ReadMemory(unsigned int type)
 	else if (type == TLightCreate)
 	{
 		lights.push_back(Lights());
-		lights.back().lightData = new LightData();
 
-		memcpy(&lights.back().lightData->pos, (char*)buffer + localTail, sizeof(XMFLOAT3));
+		memcpy (&lights.back ().lightData.pos, (char*) buffer + localTail, sizeof(XMFLOAT3));
 		localTail += sizeof(XMFLOAT3);
-		memcpy(&lights.back().lightData->color, (char*)buffer + localTail, sizeof(XMFLOAT4));
+		memcpy (&lights.back ().lightData.color, (char*) buffer + localTail, sizeof(XMFLOAT4));
 		localTail += sizeof(XMFLOAT4);
 
 		cb->tail += slotSize;

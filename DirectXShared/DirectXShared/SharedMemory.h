@@ -112,12 +112,12 @@ public:
 	vector<string> lightNames;
 	struct LightData
 	{
-		XMFLOAT3 pos;
+		XMFLOAT4 pos;
 		XMFLOAT4 color;
 	};
 	struct Lights
 	{
-		LightData* lightData;
+		LightData lightData;
 		ID3D11Buffer* lightBuffer;
 	};
 	vector<Lights> lights;

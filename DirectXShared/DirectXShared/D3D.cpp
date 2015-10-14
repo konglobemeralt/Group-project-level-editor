@@ -180,29 +180,29 @@ void D3D::Update()
 	else if (smType == TLightCreate)
 	{
 		ReadMemory(smType);
-		lights.back().lightBuffer = CreateConstantBuffer(sizeof(LightData), lights.back().lightData);
+		lights.back ().lightBuffer = CreateConstantBuffer (sizeof(LightData), &lights.back ().lightData);
 	}
 	else if (smType == TLightUpdate)
 	{
-		// View
-		ReadMemory(smType);
-		devcon->Map(lights.back().lightBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapSub);
+		//// View
+		//ReadMemory(smType);
+		//devcon->Map(lights.back().lightBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapSub);
 
-		if (localLight == 0)
-		{
-			memcpy(&lights.back().lightData->color, (char*)buffer + localTail, sizeof(XMFLOAT4));
-			localTail += sizeof(XMFLOAT4);
-		}
-		else if (localLight == 1)
-		{
-			memcpy(&lights.back().lightData->pos, (char*)buffer + localTail, sizeof(XMFLOAT3));
-			localTail += sizeof(XMFLOAT3);
-		}
+		//if (localLight == 0)
+		//{
+		//	memcpy(&lights.back().lightData->color, (char*)buffer + localTail, sizeof(XMFLOAT4));
+		//	localTail += sizeof(XMFLOAT4);
+		//}
+		//else if (localLight == 1)
+		//{
+		//	memcpy(&lights.back().lightData->pos, (char*)buffer + localTail, sizeof(XMFLOAT3));
+		//	localTail += sizeof(XMFLOAT3);
+		//}
 
-		cb->tail += slotSize;
-		cb->freeMem += slotSize;
+		//cb->tail += slotSize;
+		//cb->freeMem += slotSize;
 
-		devcon->Unmap(lights.back().lightBuffer, 0);
+		//devcon->Unmap(lights.back().lightBuffer, 0);
 	}
 	else if (smType == TNodeDestroyed)
 	{
@@ -240,6 +240,9 @@ void D3D::Render()
 	devcon->IASetInputLayout(inputLayout);
 	devcon->VSSetShader(vertexShader, NULL, 0);
 	devcon->PSSetShader(pixelShader, NULL, 0);
+
+	unsigned int strides [3] = { 12, 8, 12 };
+	unsigned int offsets [3] = { 0, 0, 0 };
 
 	//Light do a 'for' later:
 	if (lights.size() > 0)
@@ -322,8 +325,8 @@ ID3D11Buffer* D3D::CreateConstantBuffer(size_t size, const void* data)
 	cbInitData.pSysMem = data;
 	cbInitData.SysMemPitch = 0;
 	cbInitData.SysMemSlicePitch = 0;
-
-	device->CreateBuffer(&cbDesc, &cbInitData, &constantBuffer);
+	HRESULT hr;
+	hr = device->CreateBuffer(&cbDesc, &cbInitData, &constantBuffer);
 	return constantBuffer;
 }
 
