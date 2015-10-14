@@ -17,7 +17,6 @@ struct VS_IN
 	float3 Pos : SV_POSITION;
 	float2 Tex : TEXCOORD;
 	float3 Normal : NORMAL;
-	//float3 Pos2 : POSITION;
 };
 
 struct VS_OUT
@@ -25,6 +24,7 @@ struct VS_OUT
 	float4 Pos : SV_POSITION;
 	float2 Tex : TEXCOORD;
 	float3 Normal : NORMAL;
+	float4 WorldPos : POSITION;
 };
 
 VS_OUT main(VS_IN input)
@@ -34,6 +34,7 @@ VS_OUT main(VS_IN input)
 	output.Pos = mul(float4(input.Pos, 1.0f), mul(world, mul(view, projection)));
 	output.Tex = input.Tex;
 	output.Normal = mul(float4(input.Normal, 0.0f), world).xyz;
+	output.WorldPos = mul (float4(input.Pos, 1.0f), world);
 
 	return output;
 }

@@ -57,12 +57,6 @@ public:
 	}msgHeader;
 
 	// MESH
-	struct VertexData
-	{
-		XMFLOAT3 pos;
-		XMFLOAT2 uv;
-		XMFLOAT3 normal;
-	};
 	struct MeshData
 	{
 		//VertexData* vertexData;
