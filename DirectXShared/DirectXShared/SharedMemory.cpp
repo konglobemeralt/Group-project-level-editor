@@ -151,15 +151,11 @@ void SharedMemory::ReadMemory(unsigned int type)
 
 				meshes.back().texturePath[meshes.back().textureSize] = '\0';
 
-				// Move tail
-				cb->tail += (meshes.back().vertexCount * sizeof(float) * 8) + sizeof(MSGHeader) + msgHeader.padding + sizeof(XMFLOAT4X4) + sizeof(int) + sizeof(XMFLOAT4) + sizeof(int) + sizeof(int) + meshes.back().textureSize;
-				cb->freeMem += (meshes.back().vertexCount * sizeof(float) * 8) + sizeof(MSGHeader) + msgHeader.padding + sizeof(XMFLOAT4X4) + sizeof(int) + sizeof(XMFLOAT4) + sizeof(int) + sizeof(int) + meshes.back().textureSize;
 			}
-			else
-			{
-				cb->tail += (meshes.back().vertexCount * sizeof(float) * 8) + sizeof(MSGHeader) + msgHeader.padding + sizeof(XMFLOAT4X4) + sizeof(int) + sizeof(XMFLOAT4) + sizeof(int);
-				cb->freeMem += (meshes.back().vertexCount * sizeof(float) * 8) + sizeof(MSGHeader) + msgHeader.padding + sizeof(XMFLOAT4X4) + sizeof(int) + sizeof(XMFLOAT4) + sizeof(int);
-			}
+
+			// Move tail
+			cb->freeMem += (localTail - cb->tail) + msgHeader.padding;
+			cb->tail += (localTail - cb->tail) + msgHeader.padding;
 		}
 	}
 	else if (type == TMeshUpdate)

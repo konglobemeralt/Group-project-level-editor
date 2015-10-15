@@ -6,6 +6,7 @@ enum Type
 	TMeshUpdate,
 	TVertexUpdate,
 	TNormalUpdate,
+	TUVUpdate,
 	TtransformUpdate,
 	TCameraUpdate,
 	TLightCreate,

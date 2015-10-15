@@ -9,6 +9,7 @@ void MeshCreationCB(MObject& node, void* clientData);
 void MeshChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& otherPlug, void* clientData);
 void VertexChanged(MPlug& plug);
 void NormalChanged(MPlug& plug);
+void UVChanged(MPlug& plug);
 
 void TransformCreationCB(MObject& object, void* clientData);
 void TransformChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& otherPlug, void* clientData);
@@ -182,6 +183,13 @@ void GetMeshInformation(MFnMesh& mesh)
 		norIDArray.append(itPoly.normalIndex(1));
 		norIDArray.append(itPoly.normalIndex(3));
 		norIDArray.append(itPoly.normalIndex(2));
+
+		// TESTING
+		MGlobal::displayInfo(MString("VERTICES: ") + itPoly.polygonVertexCount());
+		for (size_t i = 0; i < itPoly.polygonVertexCount(); i++)
+		{
+			MGlobal::displayInfo(MString() + itPoly.vertexIndex(i));
+		}
 
 		itPoly.next();
 	}
@@ -389,7 +397,6 @@ void MeshCreationCB(MObject& object, void* clientData)
 
 void MeshChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& otherPlug, void* clientData)
 {
-	MGlobal::displayInfo(plug.name());
 	// check if the plug p_Plug has in its name "doubleSided", which is an attribute that when is set we know that the mesh is finally available.
 	// Only used for the creation of the mesh
 	if (strstr(plug.name().asChar(), "doubleSided") != NULL && MNodeMessage::AttributeMessage::kAttributeSet)
@@ -401,8 +408,12 @@ void MeshChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& other
 	// Vertex has changed
 	else if (strstr(plug.partialName().asChar(), "pt["))
 		VertexChanged(plug);
+	// Normal has changed
 	else if (strstr(plug.partialName().asChar(), "pt["))
 		NormalChanged(plug);
+	// Uv has changed
+	else if (strstr(plug.partialName().asChar(), "pv"))
+		UVChanged(plug);
 }
 
 void VertexChanged(MPlug& plug)
@@ -477,7 +488,6 @@ void VertexChanged(MPlug& plug)
 			break;
 		}
 	} while (sm.cb->freeMem > !slotSize);
-	sm.vertices.clear();
 }
 
 void NormalChanged(MPlug& plug)
@@ -516,7 +526,7 @@ void NormalChanged(MPlug& plug)
 			localHead = sm.cb->head;
 
 			// Message header
-			sm.msgHeader.type = TVertexUpdate;
+			sm.msgHeader.type = TNormalUpdate;
 			sm.msgHeader.padding = slotSize - ((sizeof(XMFLOAT3) * sm.vertices.size()) + sm.msgHeaderSize + sizeof(int)) % slotSize;
 			memcpy((char*)sm.buffer + localHead, &sm.msgHeader, sm.msgHeaderSize);
 			localHead += sm.msgHeaderSize;
@@ -535,7 +545,69 @@ void NormalChanged(MPlug& plug)
 			break;
 		}
 	} while (sm.cb->freeMem > !slotSize);
-	sm.vertices.clear();
+}
+
+void UVChanged(MPlug& plug)
+{
+	MFnMesh mesh(plug.node());
+	MItMeshPolygon itPoly(mesh.object());
+	float2 uv;
+	int uvIndex;
+	sm.uv.clear();
+
+	while (!itPoly.isDone())
+	{
+		// UV:s
+		itPoly.getUV(0, uv);
+		sm.uv.push_back(XMFLOAT2(uv[0], 1 - uv[1]));
+		itPoly.getUV(3, uv);
+		sm.uv.push_back(XMFLOAT2(uv[0], 1 - uv[1]));
+		itPoly.getUV(1, uv);
+		sm.uv.push_back(XMFLOAT2(uv[0], 1 - uv[1]));
+		itPoly.getUV(1, uv);
+		sm.uv.push_back(XMFLOAT2(uv[0], 1 - uv[1]));
+		itPoly.getUV(3, uv);
+		sm.uv.push_back(XMFLOAT2(uv[0], 1 - uv[1]));
+		itPoly.getUV(2, uv);
+		sm.uv.push_back(XMFLOAT2(uv[0], 1 - uv[1]));
+
+		itPoly.next();
+	}
+
+	unsigned int meshIndex = meshNames.length();
+	for (size_t i = 0; i < meshNames.length(); i++)
+	{
+		if (meshNames[i] == mesh.name())
+			meshIndex = i;
+	}
+
+	// Send data to shared memory
+	do
+	{
+		if (sm.cb->freeMem >= slotSize)
+		{
+			localHead = sm.cb->head;
+
+			// Message header
+			sm.msgHeader.type = TUVUpdate;
+			sm.msgHeader.padding = slotSize - ((sizeof(XMFLOAT2) * sm.uv.size()) + sm.msgHeaderSize + sizeof(int)) % slotSize;
+			memcpy((char*)sm.buffer + localHead, &sm.msgHeader, sm.msgHeaderSize);
+			localHead += sm.msgHeaderSize;
+
+			// Mesh index
+			memcpy((char*)sm.buffer + localHead, &meshIndex, sizeof(int));
+			localHead += sizeof(int);
+
+			// UV data
+			memcpy((char*)sm.buffer + localHead, sm.uv.data(), sizeof(XMFLOAT2) * sm.uv.size());
+			localHead += sizeof(XMFLOAT2) * sm.uv.size();
+
+			// Move header
+			sm.cb->freeMem -= (localHead - sm.cb->head) + sm.msgHeader.padding;
+			sm.cb->head += (localHead - sm.cb->head) + sm.msgHeader.padding;
+			break;
+		}
+	} while (sm.cb->freeMem > !slotSize);
 }
 
 
