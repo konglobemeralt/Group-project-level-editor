@@ -31,8 +31,8 @@ float4 main(VS_OUT input) : SV_TARGET
 
 	if (texExist.x == 1)
 	{
-		textureColor = txDiffuse.Sample(stSampler, input.Tex) * (lightColor * diffuse);
-		//textureColor = txDiffuse.Sample(stSampler, input.Tex);
+		//textureColor = txDiffuse.Sample(stSampler, input.Tex) * (lightColor * diffuse);
+		textureColor = txDiffuse.Sample(stSampler, input.Tex);
 	}
 	else
 	{

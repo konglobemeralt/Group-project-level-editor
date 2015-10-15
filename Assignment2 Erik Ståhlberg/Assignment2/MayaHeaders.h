@@ -17,6 +17,8 @@
 #include <maya/MFnCamera.h>
 #include <maya/M3dView.h>
 #include <maya/MItMeshPolygon.h>
+#include <maya/MItMeshVertex.h>
+#include <maya/MItMeshFaceVertex.h>
 #include <maya/MPlugArray.h>
 #include <maya/MFnDependencyNode.h>
 #include <maya/MFnLambertShader.h>
