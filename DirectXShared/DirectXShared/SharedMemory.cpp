@@ -35,7 +35,7 @@ void SharedMemory::OpenMemory(size_t size)
 		PAGE_READWRITE,
 		(DWORD)0,
 		size,
-		L"Global/CircularBuffer2");
+		L"Global/CircularBuffer");
 	if (GetLastError() == ERROR_ALREADY_EXISTS)
 		OutputDebugStringA("CircularBuffer allready exist\n");
 
@@ -65,7 +65,7 @@ void SharedMemory::OpenMemory(size_t size)
 		PAGE_READWRITE,
 		(DWORD)0,
 		size,
-		L"Global/MainData2");
+		L"Global/MainData");
 	if (GetLastError() == ERROR_ALREADY_EXISTS)
 		OutputDebugStringA("MainData allready exist\n");
 
@@ -85,13 +85,10 @@ int SharedMemory::ReadMSGHeader()
 	if (cb->freeMem < memSize)
 	{
 		localTail = cb->tail;
+
 		// Message header
 		memcpy(&msgHeader, (char*)buffer + localTail, sizeof(MSGHeader));
 		localTail += sizeof(MSGHeader);
-
-		//// Move tail
-		//cb->tail += sizeof(MSGHeader);
-		//cb->freeMem += sizeof(MSGHeader);
 
 		return msgHeader.type;
 	}
@@ -104,38 +101,66 @@ void SharedMemory::ReadMemory(unsigned int type)
 	{
 		// Read and store whole mesh data
 
-		meshes.push_back(MeshData());
-		meshes.back().transform = new XMFLOAT4X4();
-		meshes.back().materialColor = new XMFLOAT4();
-
 		// Size of mesh
-		memcpy(&meshes.back().vertexCount, (char*)buffer + localTail, sizeof(int));
+		memcpy(&meshSize, (char*)buffer + localTail, sizeof(int));
 		localTail += sizeof(int);
 
-		// Rezise to hold every vertex
-		meshes.back().pos = new XMFLOAT3[meshes.back().vertexCount];
-		meshes.back().uv = new XMFLOAT2[meshes.back().vertexCount];
-		meshes.back().normal = new XMFLOAT3[meshes.back().vertexCount];
+		meshes.push_back(MeshData());
+		meshes.back().transform = new XMFLOAT4X4();
 
-		// Vertex data
-		memcpy(meshes.back().pos, (char*)buffer + localTail, sizeof(XMFLOAT3) * meshes.back().vertexCount);
-		localTail += sizeof(XMFLOAT3) * meshes.back().vertexCount;
-		memcpy(meshes.back().uv, (char*)buffer + localTail, sizeof(XMFLOAT2) * meshes.back().vertexCount);
-		localTail += sizeof(XMFLOAT2) * meshes.back().vertexCount;
-		memcpy(meshes.back().normal, (char*)buffer + localTail, sizeof(XMFLOAT3) * meshes.back().vertexCount);
-		localTail += sizeof(XMFLOAT3) * meshes.back().vertexCount;
+		if (meshSize > 0)
+		{
+			meshes.back().vertexCount = meshSize;
 
-		// Matrix data
-		memcpy(meshes.back().transform, (char*)buffer + localTail, sizeof(XMFLOAT4X4));
-		localTail += sizeof(XMFLOAT4X4);
+			// Rezise to hold every vertex
+			meshes.back().pos = new XMFLOAT3[meshes.back().vertexCount];
+			meshes.back().uv = new XMFLOAT2[meshes.back().vertexCount];
+			meshes.back().normal = new XMFLOAT3[meshes.back().vertexCount];
 
-		// Material data
-		memcpy(meshes.back().materialColor, (char*)buffer + localTail, sizeof(XMFLOAT4));
-		localTail += sizeof(XMFLOAT4);
+			// Vertex data
+			memcpy(meshes.back().pos, (char*)buffer + localTail, sizeof(XMFLOAT3)* meshes.back().vertexCount);
+			localTail += sizeof(XMFLOAT3)* meshes.back().vertexCount;
+			memcpy(meshes.back().uv, (char*)buffer + localTail, sizeof(XMFLOAT2)* meshes.back().vertexCount);
+			localTail += sizeof(XMFLOAT2)* meshes.back().vertexCount;
+			memcpy(meshes.back().normal, (char*)buffer + localTail, sizeof(XMFLOAT3)* meshes.back().vertexCount);
+			localTail += sizeof(XMFLOAT3)* meshes.back().vertexCount;
 
-		// Move tail
-		cb->tail += (meshes.back().vertexCount * sizeof(float) * 8) + sizeof(MSGHeader) + msgHeader.padding + sizeof(XMFLOAT4X4) + sizeof(int) + sizeof(XMFLOAT4);
-		cb->freeMem += (meshes.back().vertexCount * sizeof(float)* 8) + sizeof(MSGHeader)+msgHeader.padding + sizeof(XMFLOAT4X4)+sizeof(int)+sizeof(XMFLOAT4);
+			// Matrix data
+			memcpy(meshes.back().transform, (char*)buffer + localTail, sizeof(XMFLOAT4X4));
+			localTail += sizeof(XMFLOAT4X4);
+
+			// Material data
+			memcpy(&meshes.back().meshTex.materialColor, (char*)buffer + localTail, sizeof(XMFLOAT4));
+			localTail += sizeof(XMFLOAT4);
+
+			//Texture true or false
+			memcpy(&meshes.back().meshTex.textureExist.x, (char*)buffer + localTail, sizeof(int));
+			localTail += sizeof(int);
+
+			if (meshes.back().meshTex.textureExist.x == 1)
+			{
+				//Texture path size
+				memcpy(&meshes.back().textureSize, (char*)buffer + localTail, sizeof(int));
+				localTail += sizeof(int);
+
+				meshes.back().texturePath = new char[meshes.back().textureSize + 1];
+
+				//Texture data
+				memcpy(meshes.back().texturePath, (char*)buffer + localTail, meshes.back().textureSize);
+				localTail += meshes.back().textureSize;
+
+				meshes.back().texturePath[meshes.back().textureSize] = '\0';
+
+				// Move tail
+				cb->tail += (meshes.back().vertexCount * sizeof(float) * 8) + sizeof(MSGHeader) + msgHeader.padding + sizeof(XMFLOAT4X4) + sizeof(int) + sizeof(XMFLOAT4) + sizeof(int) + sizeof(int) + meshes.back().textureSize;
+				cb->freeMem += (meshes.back().vertexCount * sizeof(float) * 8) + sizeof(MSGHeader) + msgHeader.padding + sizeof(XMFLOAT4X4) + sizeof(int) + sizeof(XMFLOAT4) + sizeof(int) + sizeof(int) + meshes.back().textureSize;
+			}
+			else
+			{
+				cb->tail += (meshes.back().vertexCount * sizeof(float) * 8) + sizeof(MSGHeader) + msgHeader.padding + sizeof(XMFLOAT4X4) + sizeof(int) + sizeof(XMFLOAT4) + sizeof(int);
+				cb->freeMem += (meshes.back().vertexCount * sizeof(float) * 8) + sizeof(MSGHeader) + msgHeader.padding + sizeof(XMFLOAT4X4) + sizeof(int) + sizeof(XMFLOAT4) + sizeof(int);
+			}
+		}
 	}
 	else if (type == TMeshUpdate)
 	{
@@ -152,12 +177,12 @@ void SharedMemory::ReadMemory(unsigned int type)
 		// Read and store camera
 
 		// View matrix
-		memcpy(&cameraData->pos, (char*)buffer + localTail, sizeof(double)* 3);
-		localTail += sizeof(double)* 3;
-		memcpy(&cameraData->view, (char*)buffer + localTail, sizeof(double)* 3);
-		localTail += sizeof(double)* 3;
-		memcpy(&cameraData->up, (char*)buffer + localTail, sizeof(double)* 3);
-		localTail += sizeof(double)* 3;
+		memcpy(&cameraData->pos, (char*)buffer + localTail, sizeof(double) * 3);
+		localTail += sizeof(double) * 3;
+		memcpy(&cameraData->view, (char*)buffer + localTail, sizeof(double) * 3);
+		localTail += sizeof(double) * 3;
+		memcpy(&cameraData->up, (char*)buffer + localTail, sizeof(double) * 3);
+		localTail += sizeof(double) * 3;
 
 		// View matrix
 		memcpy(testViewMatrix, (char*)buffer + localTail, sizeof(XMFLOAT4X4));
@@ -178,12 +203,12 @@ void SharedMemory::ReadMemory(unsigned int type)
 	else if (type == TLightCreate)
 	{
 		lights.push_back(Lights());
-		lights.back ().lightData = new LightData ();
+		lights.back().lightData = new LightData();
 
 		// Light data
-		memcpy (&lights.back ().lightData->pos, (char*) buffer + localTail, sizeof(XMFLOAT3));
+		memcpy(&lights.back().lightData->pos, (char*)buffer + localTail, sizeof(XMFLOAT3));
 		localTail += sizeof(XMFLOAT3);
-		memcpy (&lights.back ().lightData->color, (char*) buffer + localTail, sizeof(XMFLOAT4));
+		memcpy(&lights.back().lightData->color, (char*)buffer + localTail, sizeof(XMFLOAT4));
 		localTail += sizeof(XMFLOAT4);
 
 		cb->tail += slotSize;

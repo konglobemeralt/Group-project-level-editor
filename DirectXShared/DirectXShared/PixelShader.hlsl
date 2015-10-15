@@ -14,6 +14,7 @@ cbuffer Light : register(b0)
 
 cbuffer Color : register(b1)
 {
+	int4 texExist;
 	float4 colors;
 }
 
@@ -22,29 +23,21 @@ SamplerState stSampler : register(s0);
 
 float4 main(VS_OUT input) : SV_TARGET
 {
+	float4 textureColor = float4(1.0, 1.0, 1.0, 1.0);
 	float3 lightvec = (lightPos - input.WorldPos);
 	lightvec = normalize(lightvec);
 
 	float diffuse = saturate(dot(input.Normal, lightvec));
-	//float4 textureColor = txDiffuse.Sample(stSampler, input.Tex);
-	float4 textureColor = (lightColor * diffuse * colors);
-		//float4 textureColor = colors;
-		return textureColor;
+
+	if (texExist.x == 1)
+	{
+		textureColor = txDiffuse.Sample(stSampler, input.Tex) * (lightColor * diffuse);
+		//textureColor = txDiffuse.Sample(stSampler, input.Tex);
+	}
+	else
+	{
+		textureColor = (lightColor * diffuse * colors);
+		//textureColor = colors;
+	}
+	return textureColor;
 }
-
-//worldLightpos = normalize(lightPos - input.worldPos);
-
-//		float4 PS_main(VS_OUT input) : SV_Target
-//		{
-//			float3 lightvec = (float3(0.0f, 0.0f, -2.0f) - input.WorldPos);
-//			lightvec = normalize(lightvec);
-//			
-//			float4 color = float4(1.0f, 1.0f, 1.0f, 1.0f);
-//
-//			float diffuse = saturate(dot(input.Norm, lightvec));
-//
-//			float3 s = txDiffuse.Sample(sampAni, input.uv).xyz;
-//			float4 outL =  (color * diffuse * float4(s, 1.0f));
-//			//return float4(s, 1.0);
-//			return outL;
-//		}

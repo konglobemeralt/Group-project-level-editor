@@ -19,7 +19,7 @@ D3D::D3D(HWND win)
 	scd.SampleDesc.Quality = 0;
 	scd.Windowed = TRUE;                                    // windowed/full-screen mode
 
-	// create a device, device context and swap chain using the information in the scd struct
+															// create a device, device context and swap chain using the information in the scd struct
 	HRESULT hr = D3D11CreateDeviceAndSwapChain(NULL,
 		D3D_DRIVER_TYPE_HARDWARE,
 		NULL,
@@ -91,7 +91,9 @@ void D3D::Update()
 		meshes.back().meshesBuffer[1] = CreateMesh(8 * meshes.back().vertexCount, meshes.back().uv, meshes.back().vertexCount);
 		meshes.back().meshesBuffer[2] = CreateMesh(12 * meshes.back().vertexCount, meshes.back().normal, meshes.back().vertexCount);
 		meshes.back().transformBuffer = CreateConstantBuffer(sizeof(XMFLOAT4X4), meshes.back().transform);
-		meshes.back().colorBuffer = CreateConstantBuffer(sizeof(XMFLOAT4), meshes.back().materialColor);
+		meshes.back().colorBuffer = CreateConstantBuffer(sizeof(meshTexture), &meshes.back().meshTex);
+		if (meshes.back().meshTex.textureExist.x == 1)
+			CreateTexture();
 	}
 	else if (smType == TVertexUpdate)
 	{
@@ -115,34 +117,13 @@ void D3D::Update()
 		// View
 		devcon->Map(viewMatrix, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapSub);
 		view = (XMFLOAT4X4*)mapSub.pData;
-		ReadMemory(smType);
+		//ReadMemory(smType);
 
-		//XMStoreFloat4x4(view, XMMatrixTranspose(XMMatrixLookAtLH(
-		//	XMVectorSet(cameraData->pos[0], cameraData->pos[1], -cameraData->pos[2], 0.0f),
-		//	XMVectorSet(cameraData->view[0], cameraData->view[1], -cameraData->view[2], 0.0f),
-		//	XMVectorSet(cameraData->up[0], cameraData->up[1], cameraData->up[2], 0.0f))));
+		memcpy(view, (char*)buffer + localTail, sizeof(XMFLOAT4X4));
 
-		view->_11 = testViewMatrix->_11;
-		view->_12 = testViewMatrix->_12;
-		view->_13 = testViewMatrix->_13;
-		view->_14 = testViewMatrix->_14;
-
-		view->_21 = testViewMatrix->_21;
-		view->_22 = testViewMatrix->_22;
-		view->_23 = testViewMatrix->_23;
-		view->_24 = testViewMatrix->_24;
-
-		view->_31 = testViewMatrix->_31;
-		view->_32 = testViewMatrix->_32;
-		view->_33 = testViewMatrix->_33;
-		view->_34 = testViewMatrix->_34;
-
-		view->_41 = testViewMatrix->_41;
-		view->_42 = testViewMatrix->_42;
-		view->_43 = testViewMatrix->_43;
-		view->_44 = testViewMatrix->_44;
-
-		//XMStoreFloat4x4(view, XMMatrixTranspose(XMMatrixLookAtLH(XMVectorSet(0.0f, 2.0f, -2.0f, 0.0f), XMVectorSet(0.0f, -1.0f, 1.0f, 0.0f), XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f))));
+		// Move tail
+		cb->tail += slotSize;
+		cb->freeMem += slotSize;
 
 		devcon->Unmap(viewMatrix, 0);
 
@@ -160,15 +141,15 @@ void D3D::Update()
 	{
 		// View
 		ReadMemory(smType);
-		if (localMesh < meshes.size ())
+		if (localMesh < meshes.size())
 		{
-			devcon->Map (meshes [localMesh].transformBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapSub);
-			meshes [localMesh].transform = (XMFLOAT4X4*) mapSub.pData;
+			devcon->Map(meshes[localMesh].transformBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapSub);
+			meshes[localMesh].transform = (XMFLOAT4X4*)mapSub.pData;
 
-			memcpy (meshes [localMesh].transform, (char*) buffer + localTail, sizeof(XMFLOAT4X4));
+			memcpy(meshes[localMesh].transform, (char*)buffer + localTail, sizeof(XMFLOAT4X4));
 			localTail += sizeof(XMFLOAT4X4);
 
-			devcon->Unmap (meshes [localMesh].transformBuffer, 0);
+			devcon->Unmap(meshes[localMesh].transformBuffer, 0);
 		}
 
 		// Move tail
@@ -178,25 +159,25 @@ void D3D::Update()
 	else if (smType == TLightCreate)
 	{
 		ReadMemory(smType);
-		lights.back ().lightBuffer = CreateConstantBuffer (sizeof(LightData), lights.back ().lightData);
+		lights.back().lightBuffer = CreateConstantBuffer(sizeof(LightData), lights.back().lightData);
 	}
 	else if (smType == TLightUpdate)
 	{
 		// Light index
-		memcpy (&localLight, (char*) buffer + localTail, sizeof(int));
+		memcpy(&localLight, (char*)buffer + localTail, sizeof(int));
 		localTail += sizeof(int);
-		if (localLight < lights.size ())
+		if (localLight < lights.size())
 		{
-			devcon->Map (lights [localLight].lightBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapSub);
-			lights [localLight].lightData = (LightData*) mapSub.pData;
+			devcon->Map(lights[localLight].lightBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapSub);
+			lights[localLight].lightData = (LightData*)mapSub.pData;
 
 			// Light data
-			memcpy (&lights [localLight].lightData->pos, (char*) buffer + localTail, sizeof(XMFLOAT3));
+			memcpy(&lights[localLight].lightData->pos, (char*)buffer + localTail, sizeof(XMFLOAT3));
 			localTail += sizeof(XMFLOAT3);
-			memcpy (&lights [localLight].lightData->color, (char*) buffer + localTail, sizeof(XMFLOAT4));
+			memcpy(&lights[localLight].lightData->color, (char*)buffer + localTail, sizeof(XMFLOAT4));
 			localTail += sizeof(XMFLOAT4);
 
-			devcon->Unmap (lights [localLight].lightBuffer, 0);
+			devcon->Unmap(lights[localLight].lightBuffer, 0);
 		}
 
 		cb->tail += slotSize;
@@ -207,29 +188,29 @@ void D3D::Update()
 		ReadMemory(smType);
 
 		// Delete mesh with the given index
-		delete [] meshes [localMesh].pos;
-		delete [] meshes [localMesh].uv;
-		delete [] meshes [localMesh].normal;
+		delete[] meshes[localMesh].pos;
+		delete[] meshes[localMesh].uv;
+		delete[] meshes[localMesh].normal;
 		delete meshes[localMesh].transform;
-		delete meshes[localMesh].materialColor;
+		//delete meshes[localMesh].materialColor;
 
 		meshes[localMesh].meshesBuffer[0]->Release();
-		meshes [localMesh].meshesBuffer [1]->Release ();
-		meshes [localMesh].meshesBuffer [2]->Release ();
+		meshes[localMesh].meshesBuffer[1]->Release();
+		meshes[localMesh].meshesBuffer[2]->Release();
 		meshes[localMesh].transformBuffer->Release();
 		meshes[localMesh].colorBuffer->Release();
 
 		meshes[localMesh].meshesBuffer[0] = NULL;
-		meshes [localMesh].meshesBuffer [1] = NULL;
-		meshes [localMesh].meshesBuffer [2] = NULL;
+		meshes[localMesh].meshesBuffer[1] = NULL;
+		meshes[localMesh].meshesBuffer[2] = NULL;
 		meshes[localMesh].transformBuffer = NULL;
 		meshes[localMesh].colorBuffer = NULL;
 	}
 	else if (smType == TLightDestroyed)
 	{
-		delete lights [0].lightData;
-		lights [0].lightBuffer->Release ();
-		lights [0].lightBuffer = NULL;
+		delete lights[0].lightData;
+		lights[0].lightBuffer->Release();
+		lights[0].lightBuffer = NULL;
 
 		cb->tail += slotSize;
 		cb->freeMem += slotSize;
@@ -250,14 +231,14 @@ void D3D::Render()
 	devcon->VSSetShader(vertexShader, NULL, 0);
 	devcon->PSSetShader(pixelShader, NULL, 0);
 
-	unsigned int strides [3] = { 12, 8, 12 };
-	unsigned int offsets [3] = { 0, 0, 0 };
+	unsigned int strides[3] = { 12, 8, 12 };
+	unsigned int offsets[3] = { 0, 0, 0 };
 
 	//Light do a 'for' later:
-	if (lights.size () > 0)
+	if (lights.size() > 0)
 	{
 		if (lights[0].lightBuffer != NULL)
-			devcon->PSSetConstantBuffers (0, lights.size (), &lights.back ().lightBuffer);
+			devcon->PSSetConstantBuffers(0, lights.size(), &lights.back().lightBuffer);
 	}
 
 	for (size_t i = 0; i < meshes.size(); i++)
@@ -266,7 +247,8 @@ void D3D::Render()
 		{
 			devcon->VSSetConstantBuffers(0, 1, &meshes[i].transformBuffer);
 			devcon->PSSetConstantBuffers(1, 1, &meshes[i].colorBuffer);
-			devcon->PSSetShaderResources(0, 1, &meshTextures[i]);
+			if (meshes.back().meshTex.textureExist.x == 1)
+				devcon->PSSetShaderResources(0, 1, &meshTextures[i]);
 			devcon->IASetVertexBuffers(0, 3, meshes[i].meshesBuffer, strides, offsets);
 			devcon->Draw(meshes[0].vertexCount, 0);
 		}
@@ -277,7 +259,8 @@ void D3D::Render()
 void D3D::Create()
 {
 	// CAMERA
-	XMStoreFloat4x4(view, XMMatrixTranspose(XMMatrixLookAtLH(XMVectorSet(0.0f, 2.0f, -2.0f, 0.0f), XMVectorSet(0.0f, -0.5f, 0.5f, 0.0f), XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f))));
+	//XMStoreFloat4x4(view, XMMatrixTranspose(XMMatrixLookAtLH(XMVectorSet(0.0f, 2.0f, -2.0f, 0.0f), XMVectorSet(0.0f, -0.5f, 0.5f, 0.0f), XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f))));
+	XMStoreFloat4x4(view, XMMatrixTranspose(XMMatrixLookAtLH(XMVectorSet(0.0f, 2.0f, 2.0f, 0.0f), XMVectorSet(0.0f, -1.0f, -1.0f, 0.0f), XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f))));
 	XMStoreFloat4x4(projection, XMMatrixTranspose(XMMatrixPerspectiveFovLH(XM_PI * 0.45f, 640.0f / 480.0f, 1.0f, 100.0f)));
 	viewMatrix = CreateConstantBuffer(sizeof(XMFLOAT4X4), view);
 	projectionMatrix = CreateConstantBuffer(sizeof(XMFLOAT4X4), projection);
@@ -290,7 +273,7 @@ void D3D::Create()
 	//meshesBuffer.resize(1);
 	//smIndex = sm.ReadMemory();
 	//meshesBuffer[0] = CreateMesh(vertexSize * meshes[0].vertexCount, meshes[0].vertexData.data(), meshes[0].vertexCount);
-	CreateTexture();
+	//CreateTexture();
 }
 
 ID3D11Buffer* D3D::CreateMesh(size_t size, const void* data, size_t vertexCount)
@@ -309,7 +292,7 @@ ID3D11Buffer* D3D::CreateMesh(size_t size, const void* data, size_t vertexCount)
 	VBdata.SysMemPitch = 0;
 	VBdata.SysMemSlicePitch = 0;
 
-device->CreateBuffer(&vertexBufferDesc, &VBdata, &vertexBuffer);
+	device->CreateBuffer(&vertexBufferDesc, &VBdata, &vertexBuffer);
 	return vertexBuffer;
 }
 
@@ -317,7 +300,10 @@ void D3D::CreateTexture()
 {
 	meshTextures.resize(1);
 	CoInitialize(NULL);
-	wstring textureName = L"CubeTexture.png";
+	//wstring textureName = L"CubeTexture.png";
+	string textureString = meshes.back().texturePath;
+	wstring textureName(textureString.begin(), textureString.end());
+
 	CreateWICTextureFromFile(device, textureName.c_str(), NULL, &meshTextures[0]);
 }
 

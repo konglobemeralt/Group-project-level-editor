@@ -57,6 +57,12 @@ public:
 	}msgHeader;
 
 	// MESH
+	struct meshTexture
+	{
+		XMINT4 textureExist;
+		XMFLOAT4 materialColor;
+		//XMINT4 textureExist;
+	};
 	struct MeshData
 	{
 		//VertexData* vertexData;
@@ -69,14 +75,19 @@ public:
 		ID3D11Buffer* transformBuffer;
 
 		//Material:
-		XMFLOAT4* materialColor;
 		ID3D11Buffer* colorBuffer;
+		meshTexture meshTex;
+
+		//Texture:
+		unsigned int textureSize;
+		char* texturePath;
 	};
 	vector<MeshData> meshes;
 	vector<string> meshNames;
 	unsigned int localMesh;
 	unsigned int localVertex;
 	XMFLOAT3 vtxChanged;
+	unsigned int meshSize;
 
 	// TEXTURES
 	vector<ID3D11ShaderResourceView*> meshTextures;
