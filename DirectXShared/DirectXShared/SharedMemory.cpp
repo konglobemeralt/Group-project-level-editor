@@ -35,7 +35,7 @@ void SharedMemory::OpenMemory(size_t size)
 		PAGE_READWRITE,
 		(DWORD)0,
 		size,
-		L"Global/CircularBuffer");
+		L"Global/CircularBuffer2");
 	if (GetLastError() == ERROR_ALREADY_EXISTS)
 		OutputDebugStringA("CircularBuffer allready exist\n");
 
@@ -65,7 +65,7 @@ void SharedMemory::OpenMemory(size_t size)
 		PAGE_READWRITE,
 		(DWORD)0,
 		size,
-		L"Global/MainData");
+		L"Global/MainData2");
 	if (GetLastError() == ERROR_ALREADY_EXISTS)
 		OutputDebugStringA("MainData allready exist\n");
 
@@ -166,12 +166,6 @@ void SharedMemory::ReadMemory(unsigned int type)
 	{
 		// Read updated data and store vertexbuffer
 	}
-	else if (type == TVertexUpdate)
-	{
-		// Mesh index
-		memcpy(&localMesh, (char*)buffer + localTail, sizeof(int));
-		localTail += sizeof(int);
-	}
 	else if (type == TCameraUpdate)
 	{
 		// Read and store camera
@@ -225,19 +219,4 @@ void SharedMemory::ReadMemory(unsigned int type)
 		cb->tail += slotSize;
 		cb->freeMem += slotSize;
 	}
-}
-
-void SharedMemory::TempMesh()
-{
-	// CUBE
-	meshes.push_back(MeshData());
-	//meshes[0].vertexData.resize(6);
-
-	//meshes[0].vertexData[0].pos = XMFLOAT3(-0.5, -0.5, 0.0);
-	//meshes[0].vertexData[1].pos = XMFLOAT3(-0.5, 0.5, 0.0);
-	//meshes[0].vertexData[2].pos = XMFLOAT3(0.5, -0.5, 0.0);
-	//meshes[0].vertexData[3].pos = XMFLOAT3(0.5, -0.5, 0.0);
-	//meshes[0].vertexData[4].pos = XMFLOAT3(-0.5, 0.5, 0.0);
-	//meshes[0].vertexData[5].pos = XMFLOAT3(0.5, 0.5, 0.0);
-	//meshes[0].vertexCount = 6;
 }

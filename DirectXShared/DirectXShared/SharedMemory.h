@@ -29,7 +29,6 @@ public:
 	void OpenMemory(size_t size);
 	int ReadMSGHeader();
 	void ReadMemory(unsigned int type);
-	void TempMesh();
 
 	// SHARED MEOMRY
 	HANDLE fmCB;
