@@ -87,9 +87,9 @@ void D3D::Update()
 	if (smType == TMeshCreate)
 	{
 		ReadMemory(smType);
-		meshes.back().meshesBuffer[0] = CreateMesh(12 * meshes.back().vertexCount, meshes.back().pos, meshes.back().vertexCount);
-		meshes.back().meshesBuffer[1] = CreateMesh(8 * meshes.back().vertexCount, meshes.back().uv, meshes.back().vertexCount);
-		meshes.back().meshesBuffer[2] = CreateMesh(12 * meshes.back().vertexCount, meshes.back().normal, meshes.back().vertexCount);
+		meshes.back().meshesBuffer[0] = CreateMesh(sizeof(XMFLOAT3) * meshes.back().vertexCount, meshes.back().pos, meshes.back().vertexCount);
+		meshes.back().meshesBuffer[1] = CreateMesh(sizeof(XMFLOAT2) * meshes.back().vertexCount, meshes.back().uv, meshes.back().vertexCount);
+		meshes.back().meshesBuffer[2] = CreateMesh(sizeof(XMFLOAT3) * meshes.back().vertexCount, meshes.back().normal, meshes.back().vertexCount);
 		meshes.back().transformBuffer = CreateConstantBuffer(sizeof(XMFLOAT4X4), meshes.back().transform);
 		meshes.back().colorBuffer = CreateConstantBuffer(sizeof(meshTexture), &meshes.back().meshTex);
 		if (meshes.back().meshTex.textureExist.x == 1)
@@ -97,8 +97,11 @@ void D3D::Update()
 	}
 	else if (smType == TVertexUpdate)
 	{
-		ReadMemory(smType);
+		// Mesh index
+		memcpy(&localMesh, (char*)buffer + localTail, sizeof(int));
+		localTail += sizeof(int);
 
+		// Vertices
 		devcon->Map(meshes[localMesh].meshesBuffer[0], 0, D3D11_MAP_WRITE_DISCARD, 0, &mapSub);
 		meshes[localMesh].pos = (XMFLOAT3*)mapSub.pData;
 
@@ -106,11 +109,61 @@ void D3D::Update()
 		memcpy(meshes[localMesh].pos, (char*)buffer + localTail, meshes[localMesh].vertexCount * sizeof(XMFLOAT3));
 		localTail += meshes[localMesh].vertexCount * sizeof(XMFLOAT3);
 
+		devcon->Unmap(meshes[localMesh].meshesBuffer[0], 0);
+
+		// Normals
+		devcon->Map(meshes[localMesh].meshesBuffer[2], 0, D3D11_MAP_WRITE_DISCARD, 0, &mapSub);
+		meshes[localMesh].normal = (XMFLOAT3*)mapSub.pData;
+
+		// Normal data
+		memcpy(meshes[localMesh].normal, (char*)buffer + localTail, meshes[localMesh].vertexCount * sizeof(XMFLOAT3));
+		localTail += meshes[localMesh].vertexCount * sizeof(XMFLOAT3);
+
+		devcon->Unmap(meshes[localMesh].meshesBuffer[2], 0);
+
 		// Move tail
 		cb->freeMem += (localTail - cb->tail) + msgHeader.padding;
 		cb->tail += (localTail - cb->tail) + msgHeader.padding;
+	}
+	else if (smType == TNormalUpdate)
+	{
+		// Mesh index
+		memcpy(&localMesh, (char*)buffer + localTail, sizeof(int));
+		localTail += sizeof(int);
 
-		devcon->Unmap(meshes[localMesh].meshesBuffer[0], 0);
+		// Normals
+		devcon->Map(meshes[localMesh].meshesBuffer[2], 0, D3D11_MAP_WRITE_DISCARD, 0, &mapSub);
+		meshes[localMesh].normal = (XMFLOAT3*)mapSub.pData;
+
+		// Normal data
+		memcpy(meshes[localMesh].normal, (char*)buffer + localTail, meshes[localMesh].vertexCount * sizeof(XMFLOAT3));
+		localTail += meshes[localMesh].vertexCount * sizeof(XMFLOAT3);
+
+		devcon->Unmap(meshes[localMesh].meshesBuffer[2], 0);
+
+		// Move tail
+		cb->freeMem += (localTail - cb->tail) + msgHeader.padding;
+		cb->tail += (localTail - cb->tail) + msgHeader.padding;
+	}
+	else if (smType == TUVUpdate)
+	{
+		// Mesh index
+		memcpy(&localMesh, (char*)buffer + localTail, sizeof(int));
+		localTail += sizeof(int);
+
+		// UV
+		devcon->Map(meshes[localMesh].meshesBuffer[1], 0, D3D11_MAP_WRITE_DISCARD, 0, &mapSub);
+		meshes[localMesh].uv = (XMFLOAT2*)mapSub.pData;
+
+		// UV data
+		memcpy(meshes[localMesh].uv, (char*)buffer + localTail, meshes[localMesh].vertexCount * sizeof(XMFLOAT2));
+		localTail += meshes[localMesh].vertexCount * sizeof(XMFLOAT2);
+
+		devcon->Unmap(meshes[localMesh].meshesBuffer[1], 0);
+
+		// Move tail
+		cb->freeMem += (localTail - cb->tail) + msgHeader.padding;
+		cb->tail += (localTail - cb->tail) + msgHeader.padding;
 	}
 	else if (smType == TCameraUpdate)
 	{
@@ -192,7 +245,6 @@ void D3D::Update()
 		delete[] meshes[localMesh].uv;
 		delete[] meshes[localMesh].normal;
 		delete meshes[localMesh].transform;
-		//delete meshes[localMesh].materialColor;
 
 		meshes[localMesh].meshesBuffer[0]->Release();
 		meshes[localMesh].meshesBuffer[1]->Release();
@@ -224,7 +276,6 @@ void D3D::Render()
 	devcon->ClearRenderTargetView(backbuffer, clearColor);
 	devcon->ClearDepthStencilView(depthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
 	devcon->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	//devcon->VSSetConstantBuffers(0, 1, &worldTempBuffer);
 	devcon->VSSetConstantBuffers(1, 1, &viewMatrix);
 	devcon->VSSetConstantBuffers(2, 1, &projectionMatrix);
 	devcon->IASetInputLayout(inputLayout);
@@ -259,21 +310,13 @@ void D3D::Render()
 void D3D::Create()
 {
 	// CAMERA
-	//XMStoreFloat4x4(view, XMMatrixTranspose(XMMatrixLookAtLH(XMVectorSet(0.0f, 2.0f, -2.0f, 0.0f), XMVectorSet(0.0f, -0.5f, 0.5f, 0.0f), XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f))));
-	XMStoreFloat4x4(view, XMMatrixTranspose(XMMatrixLookAtLH(XMVectorSet(0.0f, 2.0f, 2.0f, 0.0f), XMVectorSet(0.0f, -1.0f, -1.0f, 0.0f), XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f))));
+	XMStoreFloat4x4(view, XMMatrixTranspose(XMMatrixLookAtLH(XMVectorSet(0.0f, 2.0f, -2.0f, 0.0f), XMVectorSet(0.0f, -0.5f, 0.5f, 0.0f), XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f))));
 	XMStoreFloat4x4(projection, XMMatrixTranspose(XMMatrixPerspectiveFovLH(XM_PI * 0.45f, 640.0f / 480.0f, 1.0f, 100.0f)));
 	viewMatrix = CreateConstantBuffer(sizeof(XMFLOAT4X4), view);
 	projectionMatrix = CreateConstantBuffer(sizeof(XMFLOAT4X4), projection);
 
 	XMStoreFloat4x4(&worldTemp, XMMatrixIdentity());
 	worldTempBuffer = CreateConstantBuffer(sizeof(XMFLOAT4X4), &worldTemp);
-
-	// MESH
-	//TempMesh();
-	//meshesBuffer.resize(1);
-	//smIndex = sm.ReadMemory();
-	//meshesBuffer[0] = CreateMesh(vertexSize * meshes[0].vertexCount, meshes[0].vertexData.data(), meshes[0].vertexCount);
-	//CreateTexture();
 }
 
 ID3D11Buffer* D3D::CreateMesh(size_t size, const void* data, size_t vertexCount)
@@ -298,13 +341,12 @@ ID3D11Buffer* D3D::CreateMesh(size_t size, const void* data, size_t vertexCount)
 
 void D3D::CreateTexture()
 {
-	meshTextures.resize(1);
+	meshTextures.resize(meshes.size());
 	CoInitialize(NULL);
-	//wstring textureName = L"CubeTexture.png";
 	string textureString = meshes.back().texturePath;
 	wstring textureName(textureString.begin(), textureString.end());
 
-	CreateWICTextureFromFile(device, textureName.c_str(), NULL, &meshTextures[0]);
+	CreateWICTextureFromFile(device, textureName.c_str(), NULL, &meshTextures[meshes.size() - 1]);
 }
 
 ID3D11Buffer* D3D::CreateConstantBuffer(size_t size, const void* data)
@@ -340,7 +382,6 @@ void D3D::CreateShaders()
 		{ "SV_POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
 		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 1, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
 		{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 2, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-		//{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 3, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
 	};
 	device->CreateInputLayout(inputDesc, 3, pVS->GetBufferPointer(), pVS->GetBufferSize(), &inputLayout);
 	pVS->Release();

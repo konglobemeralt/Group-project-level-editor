@@ -152,6 +152,8 @@ void GetMeshInformation(MFnMesh& mesh)
 	MIntArray uvIDArray;
 	MIntArray norIDArray;
 	int uvIndex;
+	unsigned id = 0;
+	unsigned int polyVtxCount = 0;
 	while (!itPoly.isDone())
 	{
 		// Vertex ID:s array
@@ -184,14 +186,80 @@ void GetMeshInformation(MFnMesh& mesh)
 		norIDArray.append(itPoly.normalIndex(3));
 		norIDArray.append(itPoly.normalIndex(2));
 
-		// TESTING
-		MGlobal::displayInfo(MString("VERTICES: ") + itPoly.polygonVertexCount());
-		for (size_t i = 0; i < itPoly.polygonVertexCount(); i++)
-		{
-			MGlobal::displayInfo(MString() + itPoly.vertexIndex(i));
-		}
+	//	MGlobal::displayInfo(MString("VERTICES: ") + itPoly.polygonVertexCount());
+	//	polyVtxCount = itPoly.polygonVertexCount();
+	//	if (polyVtxCount % 2 == 0)
+	//	{
+	//		for (size_t i = 0; i < polyVtxCount - 1; i += 3)
+	//		{
+	//			// Vertex ID:s array
+	//			vtxIDArray.append(itPoly.vertexIndex(id));
+	//			vtxIDArray.append(itPoly.vertexIndex(id + 1));
+	//			vtxIDArray.append(itPoly.vertexIndex(id + 2));
+	//			vtxIDArray.append(itPoly.vertexIndex(id + 2));
 
-		itPoly.next();
+	//			// UV ID:s array
+	//			itPoly.getUVIndex(id, uvIndex, 0);
+	//			uvIDArray.append(uvIndex);
+	//			itPoly.getUVIndex(id + 1, uvIndex, 0);
+	//			uvIDArray.append(uvIndex);
+	//			itPoly.getUVIndex(id + 2, uvIndex, 0);
+	//			uvIDArray.append(uvIndex);
+	//			itPoly.getUVIndex(id + 2, uvIndex, 0);
+	//			uvIDArray.append(uvIndex);
+
+	//			// Normal ID:s array
+	//			norIDArray.append(itPoly.normalIndex(id));
+	//			norIDArray.append(itPoly.normalIndex(id + 1));
+	//			norIDArray.append(itPoly.normalIndex(id + 2));
+	//			norIDArray.append(itPoly.normalIndex(id + 2));
+
+	//			MGlobal::displayInfo(MString() + itPoly.vertexIndex(id));
+	//			MGlobal::displayInfo(MString() + itPoly.vertexIndex(id + 1));
+	//			MGlobal::displayInfo(MString() + itPoly.vertexIndex(id + 2));
+	//			MGlobal::displayInfo(MString() + itPoly.vertexIndex(id + 2));
+
+	//			id += 3;
+	//		}
+
+	//		// Last vertex uv and normal triangle
+	//		vtxIDArray.append(itPoly.vertexIndex(polyVtxCount - 1));
+	//		itPoly.getUVIndex(polyVtxCount - 1, uvIndex, 0);
+	//		uvIDArray.append(uvIndex);
+	//		norIDArray.append(itPoly.normalIndex(polyVtxCount - 1));
+
+	//		vtxIDArray.append(itPoly.vertexIndex(0));
+	//		itPoly.getUVIndex(0, uvIndex, 0);
+	//		uvIDArray.append(uvIndex);
+	//		norIDArray.append(itPoly.normalIndex(0));
+
+	//		MGlobal::displayInfo(MString() + itPoly.vertexIndex(polyVtxCount - 1));
+	//		MGlobal::displayInfo(MString() + itPoly.vertexIndex(0));
+
+	//		// Every other vertex point
+	//		if (polyVtxCount > 5)
+	//		{
+	//			for (size_t i = 0; i < 3; i++)
+	//			{
+	//				vtxIDArray.append(itPoly.vertexIndex(i*2));
+	//				itPoly.getUVIndex(i*2, uvIndex, 0);
+	//				uvIDArray.append(uvIndex);
+	//				norIDArray.append(itPoly.normalIndex(i*2));
+
+	//				MGlobal::displayInfo(MString() + itPoly.vertexIndex(i*2));
+	//			}
+	//		}
+	//	}
+
+	//	//// TESTING
+	//	//MGlobal::displayInfo(MString("VERTICES: ") + itPoly.polygonVertexCount());
+	//	//for (size_t i = 0; i < itPoly.polygonVertexCount(); i++)
+	//	//{
+	//	//	MGlobal::displayInfo(MString() + itPoly.vertexIndex(i));
+	//	//}
+
+	//	id = 0;
+	//	itPoly.next();
 	}
 
 	MPointArray points;
@@ -212,9 +280,9 @@ void GetMeshInformation(MFnMesh& mesh)
 
 		for (size_t i = 0; i < vtxIDArray.length(); i++)
 		{
-			sm.pos[i] = XMFLOAT3(points[vtxIDArray[i]].x, points[vtxIDArray[i]].y, -points[vtxIDArray[i]].z);
+			sm.pos[i] = XMFLOAT3(points[vtxIDArray[i]].x, points[vtxIDArray[i]].y, points[vtxIDArray[i]].z);
 			sm.uv[i] = XMFLOAT2(us[uvIDArray[i]], 1 - vs[uvIDArray[i]]);
-			sm.normal[i] = XMFLOAT3(normals[norIDArray[i]].x, normals[norIDArray[i]].y, -normals[norIDArray[i]].z);
+			sm.normal[i] = XMFLOAT3(normals[norIDArray[i]].x, normals[norIDArray[i]].y, normals[norIDArray[i]].z);
 		}
 
 		MFnTransform transform(mesh.parent(0));
