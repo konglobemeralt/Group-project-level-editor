@@ -82,7 +82,6 @@ public:
 		char* texturePath;
 	};
 	vector<MeshData> meshes;
-	vector<string> meshNames;
 	unsigned int localMesh;
 	unsigned int localVertex;
 	XMFLOAT3 vtxChanged;
@@ -113,7 +112,6 @@ public:
 	XMFLOAT4X4* testViewMatrix;
 
 	//LIGHT
-	vector<string> lightNames;
 	struct LightData
 	{
 		XMFLOAT4 pos;
@@ -123,8 +121,7 @@ public:
 	{
 		LightData* lightData;
 		ID3D11Buffer* lightBuffer;
-	};
-	vector<Lights> lights;
+	}light;
 	int localLight;
 };
 

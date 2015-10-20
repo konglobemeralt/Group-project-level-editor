@@ -4,6 +4,7 @@ enum Type
 {
 	TMeshCreate,
 	TMeshUpdate,
+	TAddedVertex,
 	TVertexUpdate,
 	TNormalUpdate,
 	TUVUpdate,
@@ -12,7 +13,6 @@ enum Type
 	TLightCreate,
 	TLightUpdate,
 	TMeshDestroyed,
-	TLightDestroyed,
 	TMaterialUpdate,
 	TMaterialChanged,
 	TAmount

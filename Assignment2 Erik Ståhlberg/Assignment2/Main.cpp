@@ -7,13 +7,13 @@ void GetSceneData();
 void GetMeshInformation(MFnMesh& mesh);
 void MeshCreationCB(MObject& node, void* clientData);
 void MeshChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& otherPlug, void* clientData);
+void AddedVertex(MPlug& plug);
 void VertexChanged(MPlug& plug);
 void NormalChanged(MPlug& plug);
 void UVChanged(MPlug& plug);
-void MaterialChanged(MFnMesh& mesh);
 
+void MaterialChanged(MFnMesh& mesh);
 void ShaderChangedCB(MObject& object, void* clientData);
-void test(MObject& object, void* clientData);
 void shaderchanged(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& otherPlug, void* clientData);
 
 void TransformCreationCB(MObject& object, void* clientData);
@@ -38,14 +38,12 @@ int totalTime = 0.0f;
 MCallbackIdArray callbackIds;
 
 MVector lastCamPos;
-unsigned int i = 0;
 MVector diff;
 
 SharedMemory sm;
 unsigned int localHead;
 unsigned int slotSize;
 MStringArray meshNames;
-MStringArray lightNames;
 MStringArray matNames;
 MStringArray meshMatNames;
 
@@ -172,159 +170,43 @@ void GetSceneData()
 		callbackIds.append(MNodeMessage::addAttributeChangedCallback(phongShader.object(), shaderchanged));
 		itPhong.next();
 	}
-	i = 0;
-
-	//M3dView view = M3dView::active3dView();
-	//MDagPath camPath;
-	//view.getCamera(camPath);
-	//MFnCamera camera(camPath);
-
-	//MPoint eye = camera.eyePoint(MSpace::kWorld);
-	//MVector camTranslations(eye);
-	//lastCamPos = camTranslations;
 }
 
-// Försök slå ihop GetMeshInformation och MeshChangedCB
 void GetMeshInformation(MFnMesh& mesh)
 {
-	unsigned int index = 0;
 	MItMeshPolygon itPoly(mesh.object());
-	MIntArray vtxIDArray;
-	MIntArray uvIDArray;
-	MIntArray norIDArray;
-	int uvIndex;
-	unsigned id = 0;
-	unsigned int polyVtxCount = 0;
+
+	float2 uv;
+	MVector normal;
+	MPointArray points;
+	MIntArray vertexList;
+
+	sm.pos.clear();
+	sm.uv.clear();
+	sm.normal.clear();
+
+	// Normals are per face
 	while (!itPoly.isDone())
 	{
-		// Vertex ID:s array
-		vtxIDArray.append(itPoly.vertexIndex(0));
-		vtxIDArray.append(itPoly.vertexIndex(3));
-		vtxIDArray.append(itPoly.vertexIndex(1));
-		vtxIDArray.append(itPoly.vertexIndex(1));
-		vtxIDArray.append(itPoly.vertexIndex(3));
-		vtxIDArray.append(itPoly.vertexIndex(2));
+		itPoly.getTriangles(points, vertexList);
 
-		// UV ID:s array
-		itPoly.getUVIndex(0, uvIndex, 0);
-		uvIDArray.append(uvIndex);
-		itPoly.getUVIndex(3, uvIndex, 0);
-		uvIDArray.append(uvIndex);
-		itPoly.getUVIndex(1, uvIndex, 0);
-		uvIDArray.append(uvIndex);
-		itPoly.getUVIndex(1, uvIndex, 0);
-		uvIDArray.append(uvIndex);
-		itPoly.getUVIndex(3, uvIndex, 0);
-		uvIDArray.append(uvIndex);
-		itPoly.getUVIndex(2, uvIndex, 0);
-		uvIDArray.append(uvIndex);
+		for (size_t i = 0; i < points.length(); i++)
+		{
+			itPoly.getUVAtPoint(points[i], uv);
+			//itPoly.getNormal(vertexList[i], normal);
+			itPoly.getNormal(normal);
 
-		// Normal ID:s array
-		norIDArray.append(itPoly.normalIndex(0));
-		norIDArray.append(itPoly.normalIndex(3));
-		norIDArray.append(itPoly.normalIndex(1));
-		norIDArray.append(itPoly.normalIndex(1));
-		norIDArray.append(itPoly.normalIndex(3));
-		norIDArray.append(itPoly.normalIndex(2));
-
-		//	MGlobal::displayInfo(MString("VERTICES: ") + itPoly.polygonVertexCount());
-		//	polyVtxCount = itPoly.polygonVertexCount();
-		//	if (polyVtxCount % 2 == 0)
-		//	{
-		//		for (size_t i = 0; i < polyVtxCount - 1; i += 3)
-		//		{
-		//			// Vertex ID:s array
-		//			vtxIDArray.append(itPoly.vertexIndex(id));
-		//			vtxIDArray.append(itPoly.vertexIndex(id + 1));
-		//			vtxIDArray.append(itPoly.vertexIndex(id + 2));
-		//			vtxIDArray.append(itPoly.vertexIndex(id + 2));
-
-		//			// UV ID:s array
-		//			itPoly.getUVIndex(id, uvIndex, 0);
-		//			uvIDArray.append(uvIndex);
-		//			itPoly.getUVIndex(id + 1, uvIndex, 0);
-		//			uvIDArray.append(uvIndex);
-		//			itPoly.getUVIndex(id + 2, uvIndex, 0);
-		//			uvIDArray.append(uvIndex);
-		//			itPoly.getUVIndex(id + 2, uvIndex, 0);
-		//			uvIDArray.append(uvIndex);
-
-		//			// Normal ID:s array
-		//			norIDArray.append(itPoly.normalIndex(id));
-		//			norIDArray.append(itPoly.normalIndex(id + 1));
-		//			norIDArray.append(itPoly.normalIndex(id + 2));
-		//			norIDArray.append(itPoly.normalIndex(id + 2));
-
-		//			MGlobal::displayInfo(MString() + itPoly.vertexIndex(id));
-		//			MGlobal::displayInfo(MString() + itPoly.vertexIndex(id + 1));
-		//			MGlobal::displayInfo(MString() + itPoly.vertexIndex(id + 2));
-		//			MGlobal::displayInfo(MString() + itPoly.vertexIndex(id + 2));
-
-		//			id += 3;
-		//		}
-
-		//		// Last vertex uv and normal triangle
-		//		vtxIDArray.append(itPoly.vertexIndex(polyVtxCount - 1));
-		//		itPoly.getUVIndex(polyVtxCount - 1, uvIndex, 0);
-		//		uvIDArray.append(uvIndex);
-		//		norIDArray.append(itPoly.normalIndex(polyVtxCount - 1));
-
-		//		vtxIDArray.append(itPoly.vertexIndex(0));
-		//		itPoly.getUVIndex(0, uvIndex, 0);
-		//		uvIDArray.append(uvIndex);
-		//		norIDArray.append(itPoly.normalIndex(0));
-
-		//		MGlobal::displayInfo(MString() + itPoly.vertexIndex(polyVtxCount - 1));
-		//		MGlobal::displayInfo(MString() + itPoly.vertexIndex(0));
-
-		//		// Every other vertex point
-		//		if (polyVtxCount > 5)
-		//		{
-		//			for (size_t i = 0; i < 3; i++)
-		//			{
-		//				vtxIDArray.append(itPoly.vertexIndex(i*2));
-		//				itPoly.getUVIndex(i*2, uvIndex, 0);
-		//				uvIDArray.append(uvIndex);
-		//				norIDArray.append(itPoly.normalIndex(i*2));
-
-		//				MGlobal::displayInfo(MString() + itPoly.vertexIndex(i*2));
-		//			}
-		//		}
-		//	}
-
-		//	//// TESTING
-		//	//MGlobal::displayInfo(MString("VERTICES: ") + itPoly.polygonVertexCount());
-		//	//for (size_t i = 0; i < itPoly.polygonVertexCount(); i++)
-		//	//{
-		//	//	MGlobal::displayInfo(MString() + itPoly.vertexIndex(i));
-		//	//}
-
-		//	id = 0;
+			sm.pos.push_back(XMFLOAT3(points[i].x, points[i].y, -points[i].z));
+			sm.uv.push_back(XMFLOAT2(uv[0], 1 - uv[1]));
+			sm.normal.push_back(XMFLOAT3(normal.x, normal.y, -normal.z));
+		}
 		itPoly.next();
 	}
 
-	MPointArray points;
-	MFloatArray us;
-	MFloatArray vs;
-	MFloatVectorArray normals;
-	mesh.getPoints(points);
-	mesh.getUVs(us, vs);
-	mesh.getNormals(normals);
-
-	sm.pos.resize(vtxIDArray.length());
-	sm.uv.resize(vtxIDArray.length());
-	sm.normal.resize(vtxIDArray.length());
-	if (vtxIDArray.length() > 0)
+	if (sm.pos.size() > 0)
 	{
 		MGlobal::displayInfo("Mesh: " + mesh.fullPathName() + " loaded!");
 		meshNames.append(mesh.name());
-
-		for (size_t i = 0; i < vtxIDArray.length(); i++)
-		{
-			sm.pos[i] = XMFLOAT3(points[vtxIDArray[i]].x, points[vtxIDArray[i]].y, -points[vtxIDArray[i]].z);
-			sm.uv[i] = XMFLOAT2(us[uvIDArray[i]], 1 - vs[uvIDArray[i]]);
-			sm.normal[i] = XMFLOAT3(normals[norIDArray[i]].x, normals[norIDArray[i]].y, -normals[norIDArray[i]].z);
-		}
 
 		MFnTransform transform(mesh.parent(0));
 		MVector translation = transform.getTranslation(MSpace::kObject);
@@ -433,7 +315,7 @@ void GetMeshInformation(MFnMesh& mesh)
 		}
 
 		// Send data to shared memory
-		unsigned int meshSize = vtxIDArray.length();
+		unsigned int meshSize = sm.pos.size();
 		if (meshSize > 0)
 		{
 			sm.msgHeader.type = TMeshCreate;
@@ -511,6 +393,7 @@ void MeshCreationCB(MObject& object, void* clientData)
 
 void MeshChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& otherPlug, void* clientData)
 {
+	MGlobal::displayInfo("PLUGNAME: " + plug.name());
 	// check if the plug p_Plug has in its name "doubleSided", which is an attribute that when is set we know that the mesh is finally available.
 	// Only used for the creation of the mesh
 	if (strstr(plug.name().asChar(), "doubleSided") != NULL && MNodeMessage::AttributeMessage::kAttributeSet)
@@ -519,11 +402,16 @@ void MeshChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& other
 		MGlobal::displayInfo("Mesh: " + mesh.fullPathName() + " created!");
 		GetMeshInformation(mesh);
 	}
+	// Vertex added to mesh
+	else if (strstr(plug.partialName().asChar(), "o"))
+	{
+		//AddedVertex(plug);
+	}
 	// Vertex has changed
 	else if (strstr(plug.partialName().asChar(), "pt["))
 		VertexChanged(plug);
 	// Normal has changed
-	else if (strstr(plug.partialName().asChar(), "pt["))
+	else if (strstr(plug.partialName().asChar(), "NONAME"))
 		NormalChanged(plug);
 	// Uv has changed
 	else if (strstr(plug.partialName().asChar(), "pv"))
@@ -536,37 +424,111 @@ void MeshChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& other
 	}
 }
 
+void AddedVertex(MPlug& plug)
+{
+	MFnMesh mesh(plug.node());
+
+	MItMeshPolygon itPoly(mesh.object());
+
+	float2 uv;
+	MVector normal;
+	MPointArray points;
+	MIntArray vertexList;
+
+	sm.pos.clear();
+	sm.uv.clear();
+	sm.normal.clear();
+
+	// Normals are per face
+	while (!itPoly.isDone())
+	{
+		itPoly.getTriangles(points, vertexList);
+
+		for (size_t i = 0; i < points.length(); i++)
+		{
+			itPoly.getUVAtPoint(points[i], uv);
+			//itPoly.getNormal(vertexList[i], normal);
+			itPoly.getNormal(normal);
+
+			sm.pos.push_back(XMFLOAT3(points[i].x, points[i].y, -points[i].z));
+			sm.uv.push_back(XMFLOAT2(uv[0], 1 - uv[1]));
+			sm.normal.push_back(XMFLOAT3(normal.x, normal.y, -normal.z));
+		}
+		itPoly.next();
+	}
+
+	if (sm.pos.size() > 0)
+	{
+		unsigned int meshIndex = meshNames.length();
+		for (size_t i = 0; i < meshNames.length(); i++)
+		{
+			if (meshNames[i] == mesh.name())
+				meshIndex = i;
+		}
+
+		unsigned int meshSize = sm.pos.size();
+		sm.msgHeader.type = TAddedVertex;
+		sm.msgHeader.padding = slotSize - ((meshSize * sizeof(float) * 8) + sizeof(int) + sizeof(int)) % slotSize;
+		do
+		{
+			if (sm.cb->freeMem > (meshSize * sizeof(float) * 8) + sizeof(int) + sizeof(int) + sm.msgHeader.padding)
+			{
+				localHead = sm.cb->head;
+				// Message header
+				memcpy((char*)sm.buffer + localHead, &sm.msgHeader, sm.msgHeaderSize);
+				localHead += sm.msgHeaderSize;
+
+				// Mesh index
+				memcpy((char*)sm.buffer + localHead, &meshIndex, sizeof(int));
+				localHead += sizeof(int);
+
+				// Size of mesh
+				memcpy((char*)sm.buffer + localHead, &meshSize, sizeof(int));
+				localHead += sizeof(int);
+
+				// Vertex data
+				memcpy((char*)sm.buffer + localHead, sm.pos.data(), sizeof(XMFLOAT3)* sm.pos.size());
+				localHead += sizeof(XMFLOAT3)* sm.pos.size();
+				memcpy((char*)sm.buffer + localHead, sm.uv.data(), sizeof(XMFLOAT2)* sm.uv.size());
+				localHead += sizeof(XMFLOAT2)* sm.uv.size();
+				memcpy((char*)sm.buffer + localHead, sm.normal.data(), sizeof(XMFLOAT3)* sm.normal.size());
+				localHead += sizeof(XMFLOAT3)* sm.normal.size();
+
+				// Move header
+				sm.cb->freeMem -= (localHead - sm.cb->head) + sm.msgHeader.padding;
+				sm.cb->head += (localHead - sm.cb->head) + sm.msgHeader.padding;
+
+				break;
+			}
+		} while (sm.cb->freeMem > (meshSize * sizeof(float) * 8) + sizeof(int) + sizeof(int) + sm.msgHeader.padding);
+	}
+}
+
 void VertexChanged(MPlug& plug)
 {
 	MFnMesh mesh(plug.node());
+
 	MItMeshPolygon itPoly(mesh.object());
-
+	MVector normal;
 	MPointArray points;
-	mesh.getPoints(points);
-	sm.vertices.clear();
+	MIntArray vertexList;
 
-	MFloatVectorArray normals;
-	mesh.getNormals(normals);
+	sm.pos.clear();
 	sm.normal.clear();
 
+	// Normals are per face
 	while (!itPoly.isDone())
 	{
-		// Vertices
-		sm.vertices.push_back(XMFLOAT3(points[itPoly.vertexIndex(0)].x, points[itPoly.vertexIndex(0)].y, -points[itPoly.vertexIndex(0)].z));
-		sm.vertices.push_back(XMFLOAT3(points[itPoly.vertexIndex(3)].x, points[itPoly.vertexIndex(3)].y, -points[itPoly.vertexIndex(3)].z));
-		sm.vertices.push_back(XMFLOAT3(points[itPoly.vertexIndex(1)].x, points[itPoly.vertexIndex(1)].y, -points[itPoly.vertexIndex(1)].z));
-		sm.vertices.push_back(XMFLOAT3(points[itPoly.vertexIndex(1)].x, points[itPoly.vertexIndex(1)].y, -points[itPoly.vertexIndex(1)].z));
-		sm.vertices.push_back(XMFLOAT3(points[itPoly.vertexIndex(3)].x, points[itPoly.vertexIndex(3)].y, -points[itPoly.vertexIndex(3)].z));
-		sm.vertices.push_back(XMFLOAT3(points[itPoly.vertexIndex(2)].x, points[itPoly.vertexIndex(2)].y, -points[itPoly.vertexIndex(2)].z));
+		itPoly.getTriangles(points, vertexList);
 
-		// Normals
-		sm.normal.push_back(XMFLOAT3(normals[itPoly.normalIndex(0)].x, normals[itPoly.normalIndex(0)].y, -normals[itPoly.normalIndex(0)].z));
-		sm.normal.push_back(XMFLOAT3(normals[itPoly.normalIndex(3)].x, normals[itPoly.normalIndex(3)].y, -normals[itPoly.normalIndex(3)].z));
-		sm.normal.push_back(XMFLOAT3(normals[itPoly.normalIndex(1)].x, normals[itPoly.normalIndex(1)].y, -normals[itPoly.normalIndex(1)].z));
-		sm.normal.push_back(XMFLOAT3(normals[itPoly.normalIndex(1)].x, normals[itPoly.normalIndex(1)].y, -normals[itPoly.normalIndex(1)].z));
-		sm.normal.push_back(XMFLOAT3(normals[itPoly.normalIndex(3)].x, normals[itPoly.normalIndex(3)].y, -normals[itPoly.normalIndex(3)].z));
-		sm.normal.push_back(XMFLOAT3(normals[itPoly.normalIndex(2)].x, normals[itPoly.normalIndex(2)].y, -normals[itPoly.normalIndex(2)].z));
+		for (size_t i = 0; i < points.length(); i++)
+		{
+			//itPoly.getNormal(vertexList[i], normal);
+			itPoly.getNormal(normal);
 
+			sm.pos.push_back(XMFLOAT3(points[i].x, points[i].y, -points[i].z));
+			sm.normal.push_back(XMFLOAT3(normal.x, normal.y, normal.z));
+		}
 		itPoly.next();
 	}
 
@@ -586,7 +548,7 @@ void VertexChanged(MPlug& plug)
 
 			// Message header
 			sm.msgHeader.type = TVertexUpdate;
-			sm.msgHeader.padding = slotSize - ((sizeof(XMFLOAT3)* sm.vertices.size()) * 2 + sm.msgHeaderSize + sizeof(int)) % slotSize;
+			sm.msgHeader.padding = slotSize - ((sizeof(XMFLOAT3) * sm.pos.size()) * 2 + sm.msgHeaderSize + sizeof(int)) % slotSize;
 			memcpy((char*)sm.buffer + localHead, &sm.msgHeader, sm.msgHeaderSize);
 			localHead += sm.msgHeaderSize;
 
@@ -595,12 +557,12 @@ void VertexChanged(MPlug& plug)
 			localHead += sizeof(int);
 
 			// Vertex data
-			memcpy((char*)sm.buffer + localHead, sm.vertices.data(), sizeof(XMFLOAT3)* sm.vertices.size());
-			localHead += sizeof(XMFLOAT3)* sm.vertices.size();
+			memcpy((char*)sm.buffer + localHead, sm.pos.data(), sizeof(XMFLOAT3) * sm.pos.size());
+			localHead += sizeof(XMFLOAT3) * sm.pos.size();
 
 			// Normal data
-			memcpy((char*)sm.buffer + localHead, sm.normal.data(), sizeof(XMFLOAT3)* sm.normal.size());
-			localHead += sizeof(XMFLOAT3)* sm.normal.size();
+			memcpy((char*)sm.buffer + localHead, sm.normal.data(), sizeof(XMFLOAT3) * sm.normal.size());
+			localHead += sizeof(XMFLOAT3) * sm.normal.size();
 
 			// Move header
 			sm.cb->freeMem -= (localHead - sm.cb->head) + sm.msgHeader.padding;
@@ -613,21 +575,24 @@ void VertexChanged(MPlug& plug)
 void NormalChanged(MPlug& plug)
 {
 	MFnMesh mesh(plug.node());
+
 	MItMeshPolygon itPoly(mesh.object());
-	MFloatVectorArray normals;
-	mesh.getNormals(normals);
+	MVector normal;
+	MPointArray points;
+	MIntArray vertexList;
 	sm.normal.clear();
 
+	// Normals are per face
 	while (!itPoly.isDone())
 	{
-		// Normals
-		sm.normal.push_back(XMFLOAT3(normals[itPoly.normalIndex(0)].x, normals[itPoly.normalIndex(0)].y, -normals[itPoly.normalIndex(0)].z));
-		sm.normal.push_back(XMFLOAT3(normals[itPoly.normalIndex(3)].x, normals[itPoly.normalIndex(3)].y, -normals[itPoly.normalIndex(3)].z));
-		sm.normal.push_back(XMFLOAT3(normals[itPoly.normalIndex(1)].x, normals[itPoly.normalIndex(1)].y, -normals[itPoly.normalIndex(1)].z));
-		sm.normal.push_back(XMFLOAT3(normals[itPoly.normalIndex(1)].x, normals[itPoly.normalIndex(1)].y, -normals[itPoly.normalIndex(1)].z));
-		sm.normal.push_back(XMFLOAT3(normals[itPoly.normalIndex(3)].x, normals[itPoly.normalIndex(3)].y, -normals[itPoly.normalIndex(3)].z));
-		sm.normal.push_back(XMFLOAT3(normals[itPoly.normalIndex(2)].x, normals[itPoly.normalIndex(2)].y, -normals[itPoly.normalIndex(2)].z));
+		itPoly.getTriangles(points, vertexList);
 
+		for (size_t i = 0; i < points.length(); i++)
+		{
+			//itPoly.getNormal(vertexList[i], normal);
+			itPoly.getNormal(normal);
+			sm.normal.push_back(XMFLOAT3(normal.x, normal.y, -normal.z));
+		}
 		itPoly.next();
 	}
 
@@ -647,7 +612,7 @@ void NormalChanged(MPlug& plug)
 
 			// Message header
 			sm.msgHeader.type = TNormalUpdate;
-			sm.msgHeader.padding = slotSize - ((sizeof(XMFLOAT3)* sm.vertices.size()) + sm.msgHeaderSize + sizeof(int)) % slotSize;
+			sm.msgHeader.padding = slotSize - ((sizeof(XMFLOAT3)* sm.normal.size()) + sm.msgHeaderSize + sizeof(int)) % slotSize;
 			memcpy((char*)sm.buffer + localHead, &sm.msgHeader, sm.msgHeaderSize);
 			localHead += sm.msgHeaderSize;
 
@@ -656,8 +621,8 @@ void NormalChanged(MPlug& plug)
 			localHead += sizeof(int);
 
 			// Normal data
-			memcpy((char*)sm.buffer + localHead, sm.vertices.data(), sizeof(XMFLOAT3)* sm.vertices.size());
-			localHead += sizeof(XMFLOAT3)* sm.vertices.size();
+			memcpy((char*)sm.buffer + localHead, sm.normal.data(), sizeof(XMFLOAT3)* sm.normal.size());
+			localHead += sizeof(XMFLOAT3)* sm.normal.size();
 
 			// Move header
 			sm.cb->freeMem -= (localHead - sm.cb->head) + sm.msgHeader.padding;
@@ -670,27 +635,24 @@ void NormalChanged(MPlug& plug)
 void UVChanged(MPlug& plug)
 {
 	MFnMesh mesh(plug.node());
+
 	MItMeshPolygon itPoly(mesh.object());
+
 	float2 uv;
-	int uvIndex;
+	MPointArray points;
+	MIntArray vertexList;
 	sm.uv.clear();
 
+	// Normals are per face
 	while (!itPoly.isDone())
 	{
-		// UV:s
-		itPoly.getUV(0, uv);
-		sm.uv.push_back(XMFLOAT2(uv[0], 1 - uv[1]));
-		itPoly.getUV(3, uv);
-		sm.uv.push_back(XMFLOAT2(uv[0], 1 - uv[1]));
-		itPoly.getUV(1, uv);
-		sm.uv.push_back(XMFLOAT2(uv[0], 1 - uv[1]));
-		itPoly.getUV(1, uv);
-		sm.uv.push_back(XMFLOAT2(uv[0], 1 - uv[1]));
-		itPoly.getUV(3, uv);
-		sm.uv.push_back(XMFLOAT2(uv[0], 1 - uv[1]));
-		itPoly.getUV(2, uv);
-		sm.uv.push_back(XMFLOAT2(uv[0], 1 - uv[1]));
+		itPoly.getTriangles(points, vertexList);
 
+		for (size_t i = 0; i < points.length(); i++)
+		{
+			itPoly.getUVAtPoint(points[i], uv);
+			sm.uv.push_back(XMFLOAT2(uv[0], 1 - uv[1]));
+		}
 		itPoly.next();
 	}
 
@@ -729,6 +691,7 @@ void UVChanged(MPlug& plug)
 		}
 	} while (sm.cb->freeMem > !slotSize);
 }
+
 
 void MaterialChanged(MFnMesh& mesh)
 {
@@ -1046,6 +1009,7 @@ void shaderchanged(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& other
 	}
 }
 
+
 void TransformCreationCB(MObject& object, void* clientData)
 {
 	// Add a callback specifik to every new transform that are created
@@ -1277,7 +1241,6 @@ void GetLightInformation(MFnLight& light)
 void LightCreationCB(MObject& lightObject, void* clientData)
 {
 	MFnLight light(lightObject);
-	lightNames.append(light.name());
 
 	callbackIds.append(MNodeMessage::addAttributeChangedCallback(lightObject, LightChangedCB));
 	MObject dad = light.parent(0);
@@ -1367,18 +1330,6 @@ void LightChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& othe
 		MGlobal::displayInfo(MString() + "Position: " + positionF.x + " " + positionF.y + " " + positionF.z);
 		MGlobal::displayInfo(MString() + "Color: " + color.r + " " + color.g + " " + color.b + " " + color.a);
 
-		unsigned int lightIndex = INT_MAX;
-		for (size_t i = 0; i < lightNames.length(); i++)
-		{
-			MGlobal::displayInfo(lightNames[i]);
-			MGlobal::displayInfo(light.name());
-			if (lightNames[i] == light.name())
-			{
-				lightIndex = i;
-			}
-		}
-		lightIndex = 0; // Remove this later to support multiple lights
-
 		do
 		{
 			if (sm.cb->freeMem > slotSize)
@@ -1390,10 +1341,6 @@ void LightChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& othe
 				sm.msgHeader.padding = slotSize - sm.msgHeaderSize - sizeof(MColor)-sizeof(XMFLOAT3);
 				memcpy((char*)sm.buffer + localHead, &sm.msgHeader, sm.msgHeaderSize);
 				localHead += sm.msgHeaderSize;
-
-				// Light index
-				memcpy((char*)sm.buffer + localHead, &lightIndex, sizeof(int));
-				localHead += sizeof(int);
 
 				// Light data
 				memcpy((char*)sm.buffer + localHead, &positionF, sizeof(XMFLOAT3));
@@ -1435,40 +1382,27 @@ void TimerCB(float elapsedTime, float lastTime, void* clientData)
 
 void NodeDestroyedCB(MObject& object, MDGModifier& modifier, void* clientData)
 {
+	MFnMesh mesh(object);
+
 	localHead = sm.cb->head;
-	if (object.hasFn(MFn::kMesh))
+	unsigned int meshIndex = meshNames.length();
+	for (size_t i = 0; i < meshNames.length(); i++)
 	{
-		MFnMesh mesh(object);
-		unsigned int meshIndex = meshNames.length();
-		for (size_t i = 0; i < meshNames.length(); i++)
+		if (meshNames[i] == mesh.name())
 		{
-			if (meshNames[i] == mesh.name())
-			{
-				meshIndex = i;
-			}
+			meshIndex = i;
 		}
-
-
-		// Message header
-		sm.msgHeader.type = TMeshDestroyed;
-		sm.msgHeader.padding = slotSize - sm.msgHeaderSize - sizeof(int);
-		memcpy((char*)sm.buffer + localHead, &sm.msgHeader, sm.msgHeaderSize);
-		localHead += sm.msgHeaderSize;
-
-		// Node index
-		memcpy((char*)sm.buffer + localHead, &meshIndex, sizeof(int));
-		localHead += sizeof(int);
 	}
-	else if (object.hasFn(MFn::kLight))
-	{
-		MFnLight light(object);
 
-		// Message header
-		sm.msgHeader.type = TLightDestroyed;
-		sm.msgHeader.padding = slotSize - sm.msgHeaderSize - sizeof(int);
-		memcpy((char*)sm.buffer + localHead, &sm.msgHeader, sm.msgHeaderSize);
-		localHead += sm.msgHeaderSize;
-	}
+	// Message header
+	sm.msgHeader.type = TMeshDestroyed;
+	sm.msgHeader.padding = slotSize - sm.msgHeaderSize - sizeof(int);
+	memcpy((char*)sm.buffer + localHead, &sm.msgHeader, sm.msgHeaderSize);
+	localHead += sm.msgHeaderSize;
+
+	// Node index
+	memcpy((char*)sm.buffer + localHead, &meshIndex, sizeof(int));
+	localHead += sizeof(int);
 
 	// Move header
 	sm.cb->freeMem -= slotSize;

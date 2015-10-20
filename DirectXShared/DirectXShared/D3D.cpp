@@ -64,6 +64,16 @@ D3D::D3D(HWND win)
 
 		// set the render target as the back buffer
 		devcon->OMSetRenderTargets(1, &backbuffer, depthStencilView);
+
+		ID3D11RasterizerState* p_RasterState;					// disables default backface culling
+		D3D11_RASTERIZER_DESC descRaster;
+		ZeroMemory(&descRaster, sizeof(D3D11_RASTERIZER_DESC));
+		descRaster.FillMode = D3D11_FILL_SOLID;					// WIREFRAME;
+		descRaster.CullMode = D3D11_CULL_NONE;
+		descRaster.MultisampleEnable = TRUE;
+
+		device->CreateRasterizerState(&descRaster, &p_RasterState);
+		devcon->RSSetState(p_RasterState);
 	}
 
 	viewPort.Width = (float)WINDOWSWIDTH;
@@ -220,26 +230,20 @@ void D3D::Update()
 	else if (smType == TLightCreate)
 	{
 		ReadMemory(smType);
-		lights.back().lightBuffer = CreateConstantBuffer(sizeof(LightData), lights.back().lightData);
+		light.lightBuffer = CreateConstantBuffer(sizeof(LightData), &light.lightData);
 	}
 	else if (smType == TLightUpdate)
 	{
-		// Light index
-		memcpy(&localLight, (char*)buffer + localTail, sizeof(int));
-		localTail += sizeof(int);
-		if (localLight < lights.size())
-		{
-			devcon->Map(lights[localLight].lightBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapSub);
-			lights[localLight].lightData = (LightData*)mapSub.pData;
+		devcon->Map(light.lightBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapSub);
+		light.lightData = (LightData*)mapSub.pData;
 
-			// Light data
-			memcpy(&lights[localLight].lightData->pos, (char*)buffer + localTail, sizeof(XMFLOAT3));
-			localTail += sizeof(XMFLOAT3);
-			memcpy(&lights[localLight].lightData->color, (char*)buffer + localTail, sizeof(XMFLOAT4));
-			localTail += sizeof(XMFLOAT4);
+		// Light data
+		memcpy(&light.lightData->pos, (char*)buffer + localTail, sizeof(XMFLOAT3));
+		localTail += sizeof(XMFLOAT3);
+		memcpy(&light.lightData->color, (char*)buffer + localTail, sizeof(XMFLOAT4));
+		localTail += sizeof(XMFLOAT4);
 
-			devcon->Unmap(lights[localLight].lightBuffer, 0);
-		}
+		devcon->Unmap(light.lightBuffer, 0);
 
 		cb->tail += slotSize;
 		cb->freeMem += slotSize;
@@ -266,15 +270,6 @@ void D3D::Update()
 		meshes[localMesh].transformBuffer = NULL;
 		meshes[localMesh].colorBuffer = NULL;
 	}
-	else if (smType == TLightDestroyed)
-	{
-		delete lights[0].lightData;
-		lights[0].lightBuffer->Release();
-		lights[0].lightBuffer = NULL;
-
-		cb->tail += slotSize;
-		cb->freeMem += slotSize;
-	}
 }
 
 void D3D::Render()
@@ -293,12 +288,8 @@ void D3D::Render()
 	unsigned int strides[3] = { 12, 8, 12 };
 	unsigned int offsets[3] = { 0, 0, 0 };
 
-	//Light do a 'for' later:
-	if (lights.size() > 0)
-	{
-		if (lights[0].lightBuffer != NULL)
-			devcon->PSSetConstantBuffers(0, lights.size(), &lights.back().lightBuffer);
-	}
+	if (light.lightBuffer != NULL)
+		devcon->PSSetConstantBuffers(0, 1, &light.lightBuffer);
 
 	for (size_t i = 0; i < meshes.size(); i++)
 	{

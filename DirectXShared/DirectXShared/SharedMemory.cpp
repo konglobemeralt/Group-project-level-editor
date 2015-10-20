@@ -202,13 +202,12 @@ void SharedMemory::ReadMemory(unsigned int type)
 	}
 	else if (type == TLightCreate)
 	{
-		lights.push_back(Lights());
-		lights.back().lightData = new LightData();
+		light.lightData = new LightData();
 
 		// Light data
-		memcpy(&lights.back().lightData->pos, (char*)buffer + localTail, sizeof(XMFLOAT3));
+		memcpy(&light.lightData->pos, (char*)buffer + localTail, sizeof(XMFLOAT3));
 		localTail += sizeof(XMFLOAT3);
-		memcpy(&lights.back().lightData->color, (char*)buffer + localTail, sizeof(XMFLOAT4));
+		memcpy(&light.lightData->color, (char*)buffer + localTail, sizeof(XMFLOAT4));
 		localTail += sizeof(XMFLOAT4);
 
 		cb->tail += slotSize;
