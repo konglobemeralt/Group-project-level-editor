@@ -162,28 +162,38 @@ void SharedMemory::ReadMemory(unsigned int type)
 	{
 		// Read updated data and store vertexbuffer
 	}
-	else if (type == TCameraUpdate)
+	else if (type == TMaterialUpdate)
 	{
-		// Read and store camera
+		memcpy(&localMesh, (char*)buffer + localTail, sizeof(int));
+		localTail += sizeof(int);
 
-		// View matrix
-		memcpy(&cameraData->pos, (char*)buffer + localTail, sizeof(double) * 3);
-		localTail += sizeof(double) * 3;
-		memcpy(&cameraData->view, (char*)buffer + localTail, sizeof(double) * 3);
-		localTail += sizeof(double) * 3;
-		memcpy(&cameraData->up, (char*)buffer + localTail, sizeof(double) * 3);
-		localTail += sizeof(double) * 3;
+		// Material data
+		memcpy(&meshes[localMesh].meshTex.materialColor, (char*)buffer + localTail, sizeof(XMFLOAT4));
+		localTail += sizeof(XMFLOAT4);
 
-		// View matrix
-		memcpy(testViewMatrix, (char*)buffer + localTail, sizeof(XMFLOAT4X4));
-		localTail += sizeof(XMFLOAT4X4);
+		//Texture true or false
+		memcpy(&meshes[localMesh].meshTex.textureExist.x, (char*)buffer + localTail, sizeof(int));
+		localTail += sizeof(int);
 
-		// Projection matrix
-		memcpy(&projectionTemp, (char*)buffer + localTail, sizeof(XMFLOAT4X4));
+		if (meshes[localMesh].meshTex.textureExist.x == 1)
+		{
+			//Texture path size
+			memcpy(&meshes[localMesh].textureSize, (char*)buffer + localTail, sizeof(int));
+			localTail += sizeof(int);
+
+			meshes[localMesh].texturePath = new char[meshes[localMesh].textureSize + 1];
+
+			//Texture data
+			memcpy(meshes[localMesh].texturePath, (char*)buffer + localTail, meshes[localMesh].textureSize);
+			localTail += meshes[localMesh].textureSize;
+
+			meshes[localMesh].texturePath[meshes[localMesh].textureSize] = '\0';
+
+		}
 
 		// Move tail
-		cb->tail += slotSize;
-		cb->freeMem += slotSize;
+		cb->freeMem += (localTail - cb->tail) + msgHeader.padding;
+		cb->tail += (localTail - cb->tail) + msgHeader.padding;
 	}
 	else if (type == TtransformUpdate)
 	{

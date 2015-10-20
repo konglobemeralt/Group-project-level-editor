@@ -30,6 +30,8 @@
 #include <maya/MItDependencyNodes.h>
 #include <maya/MFn.h>
 #include <maya/MFnMatrixData.h>
+#include <maya/MFloatMatrix.h>
+#include <maya/MFnMessageAttribute.h>
 
 //#include <maya/MIOStream.h>
 #include <maya/MPxNode.h> 

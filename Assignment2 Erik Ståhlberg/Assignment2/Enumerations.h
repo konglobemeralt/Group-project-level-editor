@@ -13,5 +13,7 @@ enum Type
 	TLightUpdate,
 	TMeshDestroyed,
 	TLightDestroyed,
+	TMaterialUpdate,
+	TMaterialChanged,
 	TAmount
 };

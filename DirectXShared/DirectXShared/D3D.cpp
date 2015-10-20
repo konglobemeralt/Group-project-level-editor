@@ -165,6 +165,13 @@ void D3D::Update()
 		cb->freeMem += (localTail - cb->tail) + msgHeader.padding;
 		cb->tail += (localTail - cb->tail) + msgHeader.padding;
 	}
+	else if (smType == TMaterialUpdate)
+	{
+		ReadMemory(smType);
+		meshes[localMesh].colorBuffer = CreateConstantBuffer(sizeof(meshTexture), &meshes[localMesh].meshTex);
+		if (meshes[localMesh].meshTex.textureExist.x == 1)
+			CreateTexture();
+	}
 	else if (smType == TCameraUpdate)
 	{
 		// View
@@ -173,22 +180,23 @@ void D3D::Update()
 		//ReadMemory(smType);
 
 		memcpy(view, (char*)buffer + localTail, sizeof(XMFLOAT4X4));
+		localTail += sizeof(XMFLOAT4X4);
+
+		devcon->Unmap(viewMatrix, 0);
+
+		// View
+		devcon->Map(projectionMatrix, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapSub);
+		projection = (XMFLOAT4X4*)mapSub.pData;
+
+		// Projection matrix
+		memcpy(projection, (char*)buffer + localTail, sizeof(XMFLOAT4X4));
+		localTail += sizeof(XMFLOAT4X4);
+
+		devcon->Unmap(projectionMatrix, 0);
 
 		// Move tail
 		cb->tail += slotSize;
 		cb->freeMem += slotSize;
-
-		devcon->Unmap(viewMatrix, 0);
-
-		//// Projection
-		//devcon->Map(projectionMatrix, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapSub);
-		//projection = (XMFLOAT4X4*)mapSub.pData;
-
-		//projection = &projectionTemp;
-
-		//devcon->Unmap(projectionMatrix, 0);
-
-		//projectionMatrix = CreateConstantBuffer(sizeof(XMFLOAT4X4), &projectionTemp);
 	}
 	else if (smType == TtransformUpdate)
 	{
