@@ -127,7 +127,6 @@ void GetSceneData()
 		GetLightInformation(light);
 		callbackIds.append(MNodeMessage::addAttributeChangedCallback(light.object(), LightChangedCB));
 		callbackIds.append(MNodeMessage::addAttributeChangedCallback(light.parent(0), LightChangedCB));
-		callbackIds.append(MNodeMessage::addNodeAboutToDeleteCallback(light.object(), NodeDestroyedCB));
 		itLight.next();
 	}
 
@@ -393,7 +392,6 @@ void MeshCreationCB(MObject& object, void* clientData)
 
 void MeshChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& otherPlug, void* clientData)
 {
-	MGlobal::displayInfo("PLUGNAME: " + plug.name());
 	// check if the plug p_Plug has in its name "doubleSided", which is an attribute that when is set we know that the mesh is finally available.
 	// Only used for the creation of the mesh
 	if (strstr(plug.name().asChar(), "doubleSided") != NULL && MNodeMessage::AttributeMessage::kAttributeSet)
@@ -401,11 +399,6 @@ void MeshChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& other
 		MFnMesh mesh(plug.node());
 		MGlobal::displayInfo("Mesh: " + mesh.fullPathName() + " created!");
 		GetMeshInformation(mesh);
-	}
-	// Vertex added to mesh
-	else if (strstr(plug.partialName().asChar(), "o"))
-	{
-		//AddedVertex(plug);
 	}
 	// Vertex has changed
 	else if (strstr(plug.partialName().asChar(), "pt["))
@@ -421,6 +414,12 @@ void MeshChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& other
 	{
 		MFnMesh mesh(plug.node());
 		MaterialChanged(mesh);
+	}
+	// Vertex added to mesh
+	else if (strstr(otherPlug.name().asChar(), "polyExtrude") && strstr(otherPlug.name().asChar(), "manipMatrix"))
+	{
+		MGlobal::displayInfo("PLUGNAME: " + otherPlug.name());
+		AddedVertex(plug);
 	}
 }
 
@@ -468,10 +467,10 @@ void AddedVertex(MPlug& plug)
 
 		unsigned int meshSize = sm.pos.size();
 		sm.msgHeader.type = TAddedVertex;
-		sm.msgHeader.padding = slotSize - ((meshSize * sizeof(float) * 8) + sizeof(int) + sizeof(int)) % slotSize;
+		sm.msgHeader.padding = slotSize - (sm.msgHeaderSize + (meshSize * sizeof(float) * 8) + sizeof(int)*2) % slotSize;
 		do
 		{
-			if (sm.cb->freeMem > (meshSize * sizeof(float) * 8) + sizeof(int) + sizeof(int) + sm.msgHeader.padding)
+			if (sm.cb->freeMem > (sm.msgHeaderSize + meshSize * sizeof(float) * 8) + sizeof(int)*2 + sm.msgHeader.padding)
 			{
 				localHead = sm.cb->head;
 				// Message header
@@ -1187,10 +1186,7 @@ void CameraChanged(MFnTransform& transform, MFnCamera& camera)
 
 void GetLightInformation(MFnLight& light)
 {
-	callbackIds.append(MNodeMessage::addAttributeChangedCallback(light.object(), LightChangedCB));
 	MObject dad = light.parent(0);
-	callbackIds.append(MNodeMessage::addAttributeChangedCallback(dad, LightChangedCB));
-
 	MColor color;
 	MVector position;
 
@@ -1246,51 +1242,7 @@ void LightCreationCB(MObject& lightObject, void* clientData)
 	MObject dad = light.parent(0);
 	callbackIds.append(MNodeMessage::addAttributeChangedCallback(dad, LightChangedCB));
 
-	MColor color;
-	MVector position;
-
-	float r, b, g, a;
-
-	MStatus status;
-	if (dad.hasFn(MFn::kTransform))
-	{
-		MFnTransform lightPoint(dad);
-		position = lightPoint.getTranslation(MSpace::kObject, &status);
-	}
-	color = light.color();
-	r = color.r;
-	b = color.b;
-	g = color.g;
-	a = color.a;
-
-	MGlobal::displayInfo(MString() + "Color: " + r + " " + b + " " + g + " " + a);
-	MGlobal::displayInfo(MString() + "Position: " + position.x + " " + position.y + " " + position.z);
-	XMFLOAT3 positionF(position.x, position.y, -position.z);
-
-	do
-	{
-		if (sm.cb->freeMem > slotSize)
-		{
-			localHead = sm.cb->head;
-			// Message header
-			sm.msgHeader.type = TLightCreate;
-			sm.msgHeader.padding = slotSize - sm.msgHeaderSize - sizeof(MColor)-sizeof(XMFLOAT3);
-			memcpy((char*)sm.buffer + localHead, &sm.msgHeader, sm.msgHeaderSize);
-			localHead += sm.msgHeaderSize;
-
-			// Light data
-			memcpy((char*)sm.buffer + localHead, &positionF, sizeof(XMFLOAT3));
-			localHead += sizeof(XMFLOAT3);
-			memcpy((char*)sm.buffer + localHead, &color, sizeof(MColor));
-			localHead += sizeof(MColor);
-
-			// Move header
-			sm.cb->freeMem -= slotSize;
-			sm.cb->head += slotSize;
-
-			break;
-		}
-	} while (sm.cb->freeMem > !slotSize);
+	GetLightInformation(light);
 }
 
 void LightChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& otherPlug, void* clientData)

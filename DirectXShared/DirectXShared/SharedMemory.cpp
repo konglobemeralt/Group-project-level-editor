@@ -158,9 +158,37 @@ void SharedMemory::ReadMemory(unsigned int type)
 			cb->tail += (localTail - cb->tail) + msgHeader.padding;
 		}
 	}
-	else if (type == TMeshUpdate)
+	else if (type == TAddedVertex)
 	{
-		// Read updated data and store vertexbuffer
+		// Mesh index
+		memcpy(&localMesh, (char*)buffer + localTail, sizeof(int));
+		localTail += sizeof(int);
+
+		// Size of mesh
+		memcpy(&meshes[localMesh].vertexCount, (char*)buffer + localTail, sizeof(int));
+		localTail += sizeof(int);
+
+		// Delete and rezise
+		delete[] meshes[localMesh].pos;
+		delete[] meshes[localMesh].uv;
+		delete[] meshes[localMesh].normal;
+
+		meshes[localMesh].pos = new XMFLOAT3[meshes[localMesh].vertexCount];
+		meshes[localMesh].uv = new XMFLOAT2[meshes[localMesh].vertexCount];
+		meshes[localMesh].normal = new XMFLOAT3[meshes[localMesh].vertexCount];
+
+		// Vertex data
+		memcpy(meshes[localMesh].pos, (char*)buffer + localTail, sizeof(XMFLOAT3)* meshes[localMesh].vertexCount);
+		localTail += sizeof(XMFLOAT3)* meshes[localMesh].vertexCount;
+		memcpy(meshes[localMesh].uv, (char*)buffer + localTail, sizeof(XMFLOAT2)* meshes[localMesh].vertexCount);
+		localTail += sizeof(XMFLOAT2)* meshes[localMesh].vertexCount;
+		memcpy(meshes[localMesh].normal, (char*)buffer + localTail, sizeof(XMFLOAT3)* meshes[localMesh].vertexCount);
+		localTail += sizeof(XMFLOAT3)* meshes[localMesh].vertexCount;
+
+
+		// Move tail
+		cb->freeMem += (localTail - cb->tail) + msgHeader.padding;
+		cb->tail += (localTail - cb->tail) + msgHeader.padding;
 	}
 	else if (type == TMaterialUpdate)
 	{

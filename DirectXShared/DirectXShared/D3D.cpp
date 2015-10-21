@@ -105,6 +105,14 @@ void D3D::Update()
 		if (meshes.back().meshTex.textureExist.x == 1)
 			CreateTexture();
 	}
+	else if (smType == TAddedVertex)
+	{
+		ReadMemory(smType);
+		meshes[localMesh].meshesBuffer[0] = CreateMesh(sizeof(XMFLOAT3) * meshes[localMesh].vertexCount, meshes[localMesh].pos, meshes[localMesh].vertexCount);
+		meshes[localMesh].meshesBuffer[1] = CreateMesh(sizeof(XMFLOAT2) * meshes[localMesh].vertexCount, meshes[localMesh].uv, meshes[localMesh].vertexCount);
+		meshes[localMesh].meshesBuffer[2] = CreateMesh(sizeof(XMFLOAT3) * meshes[localMesh].vertexCount, meshes[localMesh].normal, meshes[localMesh].vertexCount);
+
+	}
 	else if (smType == TVertexUpdate)
 	{
 		// Mesh index
@@ -230,7 +238,7 @@ void D3D::Update()
 	else if (smType == TLightCreate)
 	{
 		ReadMemory(smType);
-		light.lightBuffer = CreateConstantBuffer(sizeof(LightData), &light.lightData);
+		light.lightBuffer = CreateConstantBuffer(sizeof(LightData), light.lightData);
 	}
 	else if (smType == TLightUpdate)
 	{
