@@ -26,7 +26,7 @@ public:
 	SharedMemory();
 	~SharedMemory();
 
-	void OpenMemory(size_t size);
+	void OpenMemory(float size);
 	int ReadMSGHeader();
 	void ReadMemory(unsigned int type);
 
@@ -41,9 +41,8 @@ public:
 		unsigned int freeMem;
 		unsigned int head;
 		unsigned int tail;
-		unsigned int readersCount;
-		unsigned int allRead;
 	}*cb;
+	unsigned int localFreeMem;
 
 	size_t memSize;
 	void* buffer;
@@ -52,7 +51,7 @@ public:
 	struct MSGHeader
 	{
 		unsigned int type;
-		unsigned int padding;
+		unsigned int byteSize;
 	}msgHeader;
 
 	// MESH

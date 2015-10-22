@@ -19,9 +19,7 @@ public:
 	SharedMemory();
 	~SharedMemory();
 
-
-
-	char* OpenMemory(size_t size);
+	char* OpenMemory(float size);
 	char* CloseMemory();
 
 	HANDLE fmCB;
@@ -32,15 +30,13 @@ public:
 		unsigned int freeMem;
 		unsigned int head;
 		unsigned int tail;
-		unsigned int readersCount;
-		unsigned int allRead;
 	}*cb;
 	unsigned int cbSize;
 
 	struct MSGHeader
 	{
 		unsigned int type;
-		unsigned int padding;
+		unsigned int byteSize;
 	}msgHeader;
 	unsigned int msgHeaderSize;
 

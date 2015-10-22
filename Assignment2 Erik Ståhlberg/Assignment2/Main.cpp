@@ -19,6 +19,7 @@ void shaderchanged(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& other
 void TransformCreationCB(MObject& object, void* clientData);
 void TransformChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& otherPlug, void* clientData);
 
+void GetCameraInformation();
 void CameraCreationCB(MObject& object, void* clientData);
 void CameraChanged(MFnTransform& transform, MFnCamera& camera);
 
@@ -61,7 +62,8 @@ EXPORT MStatus initializePlugin(MObject obj)
 	sm.cbSize = 20;
 	sm.msgHeaderSize = 8;
 
-	MGlobal::displayInfo(sm.OpenMemory(100));
+	MGlobal::displayInfo(sm.OpenMemory(1.0f/256.0f));
+	//MGlobal::displayInfo(sm.OpenMemory(100));
 
 	GetSceneData();
 
@@ -73,7 +75,7 @@ EXPORT MStatus initializePlugin(MObject obj)
 	callbackIds.append(MDGMessage::addNodeAddedCallback(ShaderChangedCB, "phong", &res));
 	callbackIds.append(MTimerMessage::addTimerCallback(period, TimerCB, &res));
 
-	//MFn::kSurfaceShader
+	GetCameraInformation();
 
 	if (res == MS::kSuccess)
 		MGlobal::displayInfo("Maya plugin loaded!");
@@ -134,8 +136,6 @@ void GetSceneData()
 	while (!itCamera.isDone())
 	{
 		MFnCamera camera(itCamera.item());
-		//GetCameraInformation(camera);
-
 		callbackIds.append(MNodeMessage::addNameChangedCallback(camera.object(), NameChangedCB));
 		itCamera.next();
 	}
@@ -171,6 +171,7 @@ void GetSceneData()
 	}
 }
 
+
 void GetMeshInformation(MFnMesh& mesh)
 {
 	MItMeshPolygon itPoly(mesh.object());
@@ -195,9 +196,9 @@ void GetMeshInformation(MFnMesh& mesh)
 			//itPoly.getNormal(vertexList[i], normal);
 			itPoly.getNormal(normal);
 
-			sm.pos.push_back(XMFLOAT3(points[i].x, points[i].y, -points[i].z));
+			sm.pos.push_back(XMFLOAT3(points[i].x, points[i].y, points[i].z));
 			sm.uv.push_back(XMFLOAT2(uv[0], 1 - uv[1]));
-			sm.normal.push_back(XMFLOAT3(normal.x, normal.y, -normal.z));
+			sm.normal.push_back(XMFLOAT3(normal.x, normal.y, normal.z));
 		}
 		itPoly.next();
 	}
@@ -208,18 +209,14 @@ void GetMeshInformation(MFnMesh& mesh)
 		meshNames.append(mesh.name());
 
 		MFnTransform transform(mesh.parent(0));
-		MVector translation = transform.getTranslation(MSpace::kObject);
-		double rotation[4];
-		transform.getRotationQuaternion(rotation[0], rotation[1], rotation[2], rotation[3]);
-		double scale[3];
-		transform.getScale(scale);
-
-		XMVECTOR translationV = XMVectorSet(translation.x, translation.y, translation.z, 0.0f);
-		XMVECTOR rotationV = XMVectorSet(rotation[0], rotation[1], rotation[2], rotation[3]);
-		XMVECTOR scaleV = XMVectorSet(scale[0], scale[1], scale[2], 0.0f);
-		XMVECTOR zero = XMVectorSet(0.0f, 0.0f, 0.0f, 0.0f);
-		XMFLOAT4X4 matrixData;
-		DirectX::XMStoreFloat4x4(&matrixData, XMMatrixTranspose(XMMatrixAffineTransformation(scaleV, zero, rotationV, translationV)));
+		MMatrix transMatrix = transform.transformationMatrix().transpose();
+		float pm[4][4];
+		transMatrix.get(pm);
+		XMFLOAT4X4 matrixData(
+			pm[0][0], pm[0][1], pm[0][2], pm[0][3],
+			pm[1][0], pm[1][1], pm[1][2], pm[1][3],
+			pm[2][0], pm[2][1], pm[2][2], pm[2][3],
+			pm[3][0], pm[3][1], pm[3][2], pm[3][3]);
 
 		// MATERIAL:
 		MGlobal::displayInfo(mesh.name());
@@ -315,22 +312,37 @@ void GetMeshInformation(MFnMesh& mesh)
 
 		// Send data to shared memory
 		unsigned int meshSize = sm.pos.size();
+		if (sm.pos.size() > 60)
+			int hej = 0;
 		if (meshSize > 0)
 		{
 			sm.msgHeader.type = TMeshCreate;
+			unsigned int lastFreeMem = 0;
 			if (texExist == 1)
 			{
-				sm.msgHeader.padding = slotSize - ((meshSize * sizeof(float)* 8) + sm.msgHeaderSize + sizeof(XMFLOAT4X4)+sizeof(int)+sizeof(MColor)+sizeof(int)+sizeof(int)+pathSize) % slotSize;
+				sm.msgHeader.byteSize = (meshSize * sizeof(float) * 8) + sm.msgHeaderSize + sizeof(XMFLOAT4X4) + sizeof(int) + sizeof(MColor) + sizeof(int) + sizeof(int) + pathSize;
+				sm.msgHeader.byteSize += slotSize - ((meshSize * sizeof(float) * 8) + sm.msgHeaderSize + sizeof(XMFLOAT4X4) + sizeof(int) + sizeof(MColor) + sizeof(int) + sizeof(int) + pathSize) % slotSize;
 			}
 			else
 			{
-				sm.msgHeader.padding = slotSize - ((meshSize * sizeof(float)* 8) + sm.msgHeaderSize + sizeof(XMFLOAT4X4)+sizeof(int)+sizeof(MColor)+sizeof(int)) % slotSize;
+				sm.msgHeader.byteSize = (meshSize * sizeof(float) * 8) + sm.msgHeaderSize + sizeof(XMFLOAT4X4) + sizeof(int) + sizeof(MColor) + sizeof(int);
+				sm.msgHeader.byteSize += slotSize - ((meshSize * sizeof(float) * 8) + sm.msgHeaderSize + sizeof(XMFLOAT4X4) + sizeof(int) + sizeof(MColor) + sizeof(int)) % slotSize;
 			}
 			do
 			{
-				if (sm.cb->freeMem > ((meshSize * sizeof(float)* 8) - sm.msgHeaderSize - sizeof(XMFLOAT4X4)-sizeof(int)) + sm.msgHeader.padding)
+				if (sm.cb->freeMem > sm.msgHeader.byteSize)
 				{
+					// Sets head to 0 if there are no place to write
+					if (sm.cb->head > sm.memSize - sm.msgHeader.byteSize)
+					{
+						// The place over will set a number to indicate that the head was moved to 0
+						unsigned int type = TAmount + 1;
+						memcpy((char*)sm.buffer + sm.cb->head, &type, sizeof(int));
+						lastFreeMem = sm.memSize - sm.cb->head;
+						sm.cb->head = 0;
+					}
 					localHead = sm.cb->head;
+
 					// Message header
 					memcpy((char*)sm.buffer + localHead, &sm.msgHeader, sm.msgHeaderSize);
 					localHead += sm.msgHeaderSize;
@@ -372,12 +384,12 @@ void GetMeshInformation(MFnMesh& mesh)
 					}
 
 					// Move header
-					sm.cb->freeMem -= (localHead - sm.cb->head) + sm.msgHeader.padding;
-					sm.cb->head += (localHead - sm.cb->head) + sm.msgHeader.padding;
+					sm.cb->freeMem -= (sm.msgHeader.byteSize + lastFreeMem);
+					sm.cb->head += sm.msgHeader.byteSize;
 
 					break;
 				}
-			} while (sm.cb->freeMem > !((meshSize * sizeof(float)* 8) - sm.msgHeaderSize - sizeof(XMFLOAT4X4)-sizeof(int)) + sm.msgHeader.padding);
+			} while (sm.cb->freeMem >!sm.msgHeader.byteSize);
 		}
 	}
 }
@@ -392,6 +404,7 @@ void MeshCreationCB(MObject& object, void* clientData)
 
 void MeshChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& otherPlug, void* clientData)
 {
+	MGlobal::displayInfo("PLUGNAME: " + plug.name());
 	// check if the plug p_Plug has in its name "doubleSided", which is an attribute that when is set we know that the mesh is finally available.
 	// Only used for the creation of the mesh
 	if (strstr(plug.name().asChar(), "doubleSided") != NULL && MNodeMessage::AttributeMessage::kAttributeSet)
@@ -418,7 +431,7 @@ void MeshChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& other
 	// Vertex added to mesh
 	else if (strstr(otherPlug.name().asChar(), "polyExtrude") && strstr(otherPlug.name().asChar(), "manipMatrix"))
 	{
-		MGlobal::displayInfo("PLUGNAME: " + otherPlug.name());
+		//MGlobal::displayInfo("PLUGNAME: " + otherPlug.name());
 		AddedVertex(plug);
 	}
 }
@@ -449,9 +462,9 @@ void AddedVertex(MPlug& plug)
 			//itPoly.getNormal(vertexList[i], normal);
 			itPoly.getNormal(normal);
 
-			sm.pos.push_back(XMFLOAT3(points[i].x, points[i].y, -points[i].z));
+			sm.pos.push_back(XMFLOAT3(points[i].x, points[i].y, points[i].z));
 			sm.uv.push_back(XMFLOAT2(uv[0], 1 - uv[1]));
-			sm.normal.push_back(XMFLOAT3(normal.x, normal.y, -normal.z));
+			sm.normal.push_back(XMFLOAT3(normal.x, normal.y, normal.z));
 		}
 		itPoly.next();
 	}
@@ -465,14 +478,27 @@ void AddedVertex(MPlug& plug)
 				meshIndex = i;
 		}
 
+		// Send data to shared memory
 		unsigned int meshSize = sm.pos.size();
 		sm.msgHeader.type = TAddedVertex;
-		sm.msgHeader.padding = slotSize - (sm.msgHeaderSize + (meshSize * sizeof(float) * 8) + sizeof(int)*2) % slotSize;
+		sm.msgHeader.byteSize = sm.msgHeaderSize + (meshSize * sizeof(float) * 8) + sizeof(int) * 2;
+		sm.msgHeader.byteSize += slotSize - (sm.msgHeaderSize + (meshSize * sizeof(float) * 8) + sizeof(int) * 2) % slotSize;
+		unsigned int lastFreeMem = 0;
 		do
 		{
-			if (sm.cb->freeMem > (sm.msgHeaderSize + meshSize * sizeof(float) * 8) + sizeof(int)*2 + sm.msgHeader.padding)
+			if (sm.cb->freeMem > sm.msgHeader.byteSize)
 			{
+				// Sets head to 0 if there are no place to write
+				if (sm.cb->head > sm.memSize - sm.msgHeader.byteSize)
+				{
+					// The place over will set a number to indicate that the head was moved to 0
+					unsigned int type = TAmount + 1;
+					memcpy((char*)sm.buffer + sm.cb->head, &type, sizeof(int));
+					lastFreeMem = sm.memSize - sm.cb->head;
+					sm.cb->head = 0;
+				}
 				localHead = sm.cb->head;
+
 				// Message header
 				memcpy((char*)sm.buffer + localHead, &sm.msgHeader, sm.msgHeaderSize);
 				localHead += sm.msgHeaderSize;
@@ -494,25 +520,27 @@ void AddedVertex(MPlug& plug)
 				localHead += sizeof(XMFLOAT3)* sm.normal.size();
 
 				// Move header
-				sm.cb->freeMem -= (localHead - sm.cb->head) + sm.msgHeader.padding;
-				sm.cb->head += (localHead - sm.cb->head) + sm.msgHeader.padding;
+				sm.cb->freeMem -= (sm.msgHeader.byteSize + lastFreeMem);
+				sm.cb->head += sm.msgHeader.byteSize;
 
 				break;
 			}
-		} while (sm.cb->freeMem > (meshSize * sizeof(float) * 8) + sizeof(int) + sizeof(int) + sm.msgHeader.padding);
+		} while (sm.cb->freeMem >! sm.msgHeader.byteSize);
 	}
 }
 
 void VertexChanged(MPlug& plug)
 {
 	MFnMesh mesh(plug.node());
-
 	MItMeshPolygon itPoly(mesh.object());
+
+	float2 uv;
 	MVector normal;
 	MPointArray points;
 	MIntArray vertexList;
 
 	sm.pos.clear();
+	sm.uv.clear();
 	sm.normal.clear();
 
 	// Normals are per face
@@ -522,10 +550,12 @@ void VertexChanged(MPlug& plug)
 
 		for (size_t i = 0; i < points.length(); i++)
 		{
+			itPoly.getUVAtPoint(points[i], uv);
 			//itPoly.getNormal(vertexList[i], normal);
 			itPoly.getNormal(normal);
 
-			sm.pos.push_back(XMFLOAT3(points[i].x, points[i].y, -points[i].z));
+			sm.pos.push_back(XMFLOAT3(points[i].x, points[i].y, points[i].z));
+			sm.uv.push_back(XMFLOAT2(uv[0], 1 - uv[1]));
 			sm.normal.push_back(XMFLOAT3(normal.x, normal.y, normal.z));
 		}
 		itPoly.next();
@@ -539,15 +569,28 @@ void VertexChanged(MPlug& plug)
 	}
 
 	// Send data to shared memory
+	sm.msgHeader.type = TVertexUpdate;
+	sm.msgHeader.byteSize = (sizeof(XMFLOAT3) * 2 * sm.pos.size()) + sm.msgHeaderSize + sizeof(int) + (sizeof(XMFLOAT2) * sm.uv.size());
+	sm.msgHeader.byteSize += slotSize - ((sizeof(XMFLOAT3) * 2 * sm.pos.size()) + sm.msgHeaderSize + sizeof(int) + (sizeof(XMFLOAT2) * sm.uv.size())) % slotSize;
+	unsigned int lastFreeMem = 0;
 	do
 	{
-		if (sm.cb->freeMem >= slotSize)
+		if (sm.cb->freeMem >= sm.msgHeader.byteSize)
 		{
+			// Sets head to 0 if there are no place to write
+			if (sm.cb->head == sm.memSize)
+				sm.cb->head = 0;
+			else
+			{
+				// The place over will set a number to indicate that the head was moved to 0
+				unsigned int type = TAmount + 1;
+				memcpy((char*)sm.buffer + sm.cb->head, &type, sizeof(int));
+				lastFreeMem = sm.memSize - sm.cb->head;
+				sm.cb->head = 0;
+			}
 			localHead = sm.cb->head;
 
 			// Message header
-			sm.msgHeader.type = TVertexUpdate;
-			sm.msgHeader.padding = slotSize - ((sizeof(XMFLOAT3) * sm.pos.size()) * 2 + sm.msgHeaderSize + sizeof(int)) % slotSize;
 			memcpy((char*)sm.buffer + localHead, &sm.msgHeader, sm.msgHeaderSize);
 			localHead += sm.msgHeaderSize;
 
@@ -559,16 +602,20 @@ void VertexChanged(MPlug& plug)
 			memcpy((char*)sm.buffer + localHead, sm.pos.data(), sizeof(XMFLOAT3) * sm.pos.size());
 			localHead += sizeof(XMFLOAT3) * sm.pos.size();
 
+			// UV data
+			memcpy((char*)sm.buffer + localHead, sm.uv.data(), sizeof(XMFLOAT2) * sm.uv.size());
+			localHead += sizeof(XMFLOAT2) * sm.uv.size();
+
 			// Normal data
 			memcpy((char*)sm.buffer + localHead, sm.normal.data(), sizeof(XMFLOAT3) * sm.normal.size());
 			localHead += sizeof(XMFLOAT3) * sm.normal.size();
 
 			// Move header
-			sm.cb->freeMem -= (localHead - sm.cb->head) + sm.msgHeader.padding;
-			sm.cb->head += (localHead - sm.cb->head) + sm.msgHeader.padding;
+			sm.cb->freeMem -= (sm.msgHeader.byteSize + lastFreeMem);
+			sm.cb->head += sm.msgHeader.byteSize;
 			break;
 		}
-	} while (sm.cb->freeMem > !slotSize);
+	} while (sm.cb->freeMem >! sm.msgHeader.byteSize);
 }
 
 void NormalChanged(MPlug& plug)
@@ -590,7 +637,7 @@ void NormalChanged(MPlug& plug)
 		{
 			//itPoly.getNormal(vertexList[i], normal);
 			itPoly.getNormal(normal);
-			sm.normal.push_back(XMFLOAT3(normal.x, normal.y, -normal.z));
+			sm.normal.push_back(XMFLOAT3(normal.x, normal.y, normal.z));
 		}
 		itPoly.next();
 	}
@@ -603,15 +650,26 @@ void NormalChanged(MPlug& plug)
 	}
 
 	// Send data to shared memory
+	sm.msgHeader.type = TNormalUpdate;
+	sm.msgHeader.byteSize = (sizeof(XMFLOAT3) * sm.normal.size()) + sm.msgHeaderSize + sizeof(int);
+	sm.msgHeader.byteSize += slotSize - ((sizeof(XMFLOAT3) * sm.normal.size()) + sm.msgHeaderSize + sizeof(int)) % slotSize;
+	unsigned int lastFreeMem = 0;
 	do
 	{
-		if (sm.cb->freeMem >= slotSize)
+		if (sm.cb->freeMem >= sm.msgHeader.byteSize)
 		{
+			// Sets head to 0 if there are no place to write
+			if (sm.cb->head > sm.memSize - sm.msgHeader.byteSize)
+			{
+				// The place over will set a number to indicate that the head was moved to 0
+				unsigned int type = TAmount + 1;
+				memcpy((char*)sm.buffer + sm.cb->head, &type, sizeof(int));
+				lastFreeMem = sm.memSize - sm.cb->head;
+				sm.cb->head = 0;
+			}
 			localHead = sm.cb->head;
 
 			// Message header
-			sm.msgHeader.type = TNormalUpdate;
-			sm.msgHeader.padding = slotSize - ((sizeof(XMFLOAT3)* sm.normal.size()) + sm.msgHeaderSize + sizeof(int)) % slotSize;
 			memcpy((char*)sm.buffer + localHead, &sm.msgHeader, sm.msgHeaderSize);
 			localHead += sm.msgHeaderSize;
 
@@ -624,11 +682,11 @@ void NormalChanged(MPlug& plug)
 			localHead += sizeof(XMFLOAT3)* sm.normal.size();
 
 			// Move header
-			sm.cb->freeMem -= (localHead - sm.cb->head) + sm.msgHeader.padding;
-			sm.cb->head += (localHead - sm.cb->head) + sm.msgHeader.padding;
+			sm.cb->freeMem -= (sm.msgHeader.byteSize + lastFreeMem);
+			sm.cb->head += sm.msgHeader.byteSize;
 			break;
 		}
-	} while (sm.cb->freeMem > !slotSize);
+	} while (sm.cb->freeMem >! sm.msgHeader.byteSize);
 }
 
 void UVChanged(MPlug& plug)
@@ -663,15 +721,27 @@ void UVChanged(MPlug& plug)
 	}
 
 	// Send data to shared memory
+	sm.msgHeader.type = TUVUpdate;
+	sm.msgHeader.byteSize = (sizeof(XMFLOAT2)* sm.uv.size()) + sm.msgHeaderSize + sizeof(int);
+	sm.msgHeader.byteSize += slotSize - ((sizeof(XMFLOAT2)* sm.uv.size()) + sm.msgHeaderSize + sizeof(int)) % slotSize;
+	unsigned int lastFreeMem = 0;
 	do
 	{
-		if (sm.cb->freeMem >= slotSize)
+		if (sm.cb->freeMem >= sm.msgHeader.byteSize)
 		{
+			// Sets head to 0 if there are no place to write
+			if (sm.cb->head > sm.memSize - sm.msgHeader.byteSize)
+			{
+				// The place over will set a number to indicate that the head was moved to 0
+				unsigned int type = TAmount + 1;
+				memcpy((char*)sm.buffer + sm.cb->head, &type, sizeof(int));
+				lastFreeMem = sm.memSize - sm.cb->head;
+				sm.cb->head = 0;
+			}
+
 			localHead = sm.cb->head;
 
 			// Message header
-			sm.msgHeader.type = TUVUpdate;
-			sm.msgHeader.padding = slotSize - ((sizeof(XMFLOAT2)* sm.uv.size()) + sm.msgHeaderSize + sizeof(int)) % slotSize;
 			memcpy((char*)sm.buffer + localHead, &sm.msgHeader, sm.msgHeaderSize);
 			localHead += sm.msgHeaderSize;
 
@@ -684,11 +754,11 @@ void UVChanged(MPlug& plug)
 			localHead += sizeof(XMFLOAT2)* sm.uv.size();
 
 			// Move header
-			sm.cb->freeMem -= (localHead - sm.cb->head) + sm.msgHeader.padding;
-			sm.cb->head += (localHead - sm.cb->head) + sm.msgHeader.padding;
+			sm.cb->freeMem -= (sm.msgHeader.byteSize + lastFreeMem);
+			sm.cb->head += sm.msgHeader.byteSize;
 			break;
 		}
-	} while (sm.cb->freeMem > !slotSize);
+	} while (sm.cb->freeMem >! sm.msgHeader.byteSize);
 }
 
 
@@ -799,19 +869,25 @@ void MaterialChanged(MFnMesh& mesh)
 		// Send data to shared memory
 		do
 		{
-			if (sm.cb->freeMem >= slotSize)
+			if (sm.cb->freeMem >= slotSize/* && sm.cb->head < sm.memSize - sm.cb->freeMem*/)
 			{
+				// Sets head to 0 if there are no place to write
+				if (sm.cb->head == sm.memSize)
+					sm.cb->head = 0;
+
 				localHead = sm.cb->head;
 
 				// Message header
 				sm.msgHeader.type = TMaterialUpdate;
 				if (texExist == 0)
 				{
-					sm.msgHeader.padding = slotSize - (sizeof(MColor)+sizeof(int)+sizeof(int)) % slotSize;
+					sm.msgHeader.byteSize = sm.msgHeaderSize + sizeof(MColor) + sizeof(int) + sizeof(int);
+					sm.msgHeader.byteSize += slotSize - sm.msgHeader.byteSize;
 				}
 				else
 				{
-					sm.msgHeader.padding = slotSize - (sizeof(MColor)+sizeof(int)+sizeof(int)+pathSize + sizeof(int)) % slotSize;
+					sm.msgHeader.byteSize = sm.msgHeaderSize + sizeof(MColor) + sizeof(int) + sizeof(int) + pathSize + sizeof(int);
+					sm.msgHeader.byteSize += slotSize - sm.msgHeader.byteSize;
 				}
 				memcpy((char*)sm.buffer + localHead, &sm.msgHeader, sm.msgHeaderSize);
 				localHead += sm.msgHeaderSize;
@@ -841,11 +917,11 @@ void MaterialChanged(MFnMesh& mesh)
 				}
 
 				// Move header
-				sm.cb->freeMem -= (localHead - sm.cb->head) + sm.msgHeader.padding;
-				sm.cb->head += (localHead - sm.cb->head) + sm.msgHeader.padding;
+				sm.cb->freeMem -= slotSize;
+				sm.cb->head += slotSize;
 				break;
 			}
-		} while (sm.cb->freeMem > !slotSize);
+		} while (sm.cb->freeMem >! slotSize);
 	}
 }
 
@@ -958,17 +1034,23 @@ void shaderchanged(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& other
 				{
 					if (sm.cb->freeMem >= slotSize)
 					{
+						// Sets head to 0 if there are no place to write
+						if (sm.cb->head == sm.memSize)
+							sm.cb->head = 0;
+
 						localHead = sm.cb->head;
 
 						// Message header
 						sm.msgHeader.type = TMaterialUpdate;
 						if (texExist == 0)
 						{
-							sm.msgHeader.padding = slotSize - (sizeof(MColor)+sizeof(int)+sizeof(int)) % slotSize;
+							sm.msgHeader.byteSize = sm.msgHeaderSize + sizeof(MColor) + sizeof(int) + sizeof(int);
+							sm.msgHeader.byteSize += slotSize - sm.msgHeader.byteSize;
 						}
 						else
 						{
-							sm.msgHeader.padding = slotSize - (sizeof(MColor)+sizeof(int)+sizeof(int)+pathSize + sizeof(int)) % slotSize;
+							sm.msgHeader.byteSize = sm.msgHeaderSize + sizeof(MColor) + sizeof(int) + sizeof(int) + pathSize + sizeof(int);
+							sm.msgHeader.byteSize += slotSize - sm.msgHeader.byteSize;
 						}
 						memcpy((char*)sm.buffer + localHead, &sm.msgHeader, sm.msgHeaderSize);
 						localHead += sm.msgHeaderSize;
@@ -998,11 +1080,11 @@ void shaderchanged(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& other
 						}
 
 						// Move header
-						sm.cb->freeMem -= (localHead - sm.cb->head) + sm.msgHeader.padding;
-						sm.cb->head += (localHead - sm.cb->head) + sm.msgHeader.padding;
+						sm.cb->freeMem -= slotSize;
+						sm.cb->head += slotSize;
 						break;
 					}
-				} while (sm.cb->freeMem > !slotSize);
+				} while (sm.cb->freeMem >! slotSize);
 			}
 		}
 	}
@@ -1045,86 +1127,65 @@ void TransformChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& 
 				}
 			}
 
-			MVector translation = transform.getTranslation(MSpace::kObject);
-			double rotation[4];
-			transform.getRotationQuaternion(rotation[0], rotation[1], rotation[2], rotation[3]);
-			double scale[3];
-			transform.getScale(scale);
-			// Rotation
-			float rx, ry, rz;
-			MPlug plugValue;
-			plugValue = transform.findPlug("rx");
-			plugValue.getValue(rx);
-			plugValue = transform.findPlug("ry");
-			plugValue.getValue(ry);
-			plugValue = transform.findPlug("rz");
-			plugValue.getValue(rz);
+			MMatrix transMatrix = transform.transformationMatrix().transpose();
+			float pm[4][4];
+			transMatrix.get(pm);
+			XMFLOAT4X4 matrixData(
+				pm[0][0], pm[0][1], pm[0][2], pm[0][3],
+				pm[1][0], pm[1][1], pm[1][2], pm[1][3],
+				pm[2][0], pm[2][1], pm[2][2], pm[2][3],
+				pm[3][0], pm[3][1], pm[3][2], pm[3][3]);
 
-			DirectX::XMVECTOR translationV = XMVectorSet(translation.x, translation.y, -translation.z, 1.0f);
-			DirectX::XMVECTOR rotationV = XMVectorSet(rotation[0], rotation[1], rotation[2], 0.0f);
-			DirectX::XMVECTOR scaleV = XMVectorSet(scale[0], scale[1], scale[2], 0.0f);
-			XMVECTOR zero = XMVectorSet(0.0f, 0.0f, 0.0f, 0.0f);
-			XMFLOAT4X4 matrixData;
-			XMStoreFloat4x4(&matrixData, XMMatrixTranspose(XMMatrixAffineTransformation(scaleV, translationV, rotationV, translationV)));
+			do
+			{
+				if (sm.cb->freeMem > slotSize)
+				{
+					// Sets head to 0 if there are no place to write
+					if (sm.cb->head == sm.memSize)
+						sm.cb->head = 0;
 
-			//DirectX::XMMATRIX translationM = DirectX::XMMatrixTranslation(translation.x, translation.y, translation.z);
-			//DirectX::XMMATRIX rotationXM = DirectX::XMMatrixRotationX(rx);
-			//DirectX::XMMATRIX rotationYM = DirectX::XMMatrixRotationX(ry);
-			//DirectX::XMMATRIX rotationZM = DirectX::XMMatrixRotationX(rz);
-			//DirectX::XMMATRIX scalingM = DirectX::XMMatrixScaling(scale[0], scale[1], scale[2]);
+					localHead = sm.cb->head;
+					// Message header
+					sm.msgHeader.type = TtransformUpdate;
+					sm.msgHeader.byteSize = sm.msgHeaderSize + sizeof(int) + sizeof(XMFLOAT4X4);
+					sm.msgHeader.byteSize += slotSize - sm.msgHeader.byteSize;
 
-			//XMFLOAT4X4 matrixData;
-			//XMStoreFloat4x4(&matrixData, (scalingM * rotationXM * rotationYM * rotationZM * translationM));
+					// Message header
+					memcpy((char*)sm.buffer + localHead, &sm.msgHeader, sm.msgHeaderSize);
+					localHead += sm.msgHeaderSize;
 
-			//do
-			//{
-			//	if (sm.cb->freeMem > slotSize)
-			//	{
-			localHead = sm.cb->head;
-			// Message header
-			sm.msgHeader.type = TtransformUpdate;
-			sm.msgHeader.padding = slotSize - sm.msgHeaderSize - sizeof(int)-sizeof(XMFLOAT4X4);
-			memcpy((char*)sm.buffer + localHead, &sm.msgHeader, sm.msgHeaderSize);
-			localHead += sm.msgHeaderSize;
-			memcpy((char*)sm.buffer + localHead, &localMesh, sizeof(int));
-			localHead += sizeof(int);
-			memcpy((char*)sm.buffer + localHead, &matrixData, sizeof(XMFLOAT4X4));
-			localHead += sizeof(XMFLOAT4X4);
+					// Mesh index
+					memcpy((char*)sm.buffer + localHead, &localMesh, sizeof(int));
+					localHead += sizeof(int);
 
-			// Move header
-			sm.cb->freeMem -= slotSize;
-			sm.cb->head += slotSize;
+					// Matrix data
+					memcpy((char*)sm.buffer + localHead, &matrixData, sizeof(XMFLOAT4X4));
+					localHead += sizeof(XMFLOAT4X4);
 
-			//		break;
-			//	}
-			//}while (sm.cb->freeMem >! slotSize);
+					// Move header
+					sm.cb->freeMem -= slotSize;
+					sm.cb->head += slotSize;
+
+					break;
+				}
+			}while (sm.cb->freeMem >! slotSize);
 		}
 	}
 }
 
 
-void CameraCreationCB(MObject& object, void* clientData) {}
-
-void CameraChanged(MFnTransform& transform, MFnCamera& camera)
+void GetCameraInformation()
 {
-	//MIRRORING CAMERA AND PROJECTION NOT REALLY WORKING AS INTENDED!
-	MPoint eye = camera.eyePoint(MSpace::kWorld);
-	MVector viewDirection = camera.viewDirection(MSpace::kWorld);
-	MVector upDirection = camera.upDirection(MSpace::kWorld);
-	eye.z = -eye.z;
-	viewDirection.z = -viewDirection.z;
-	viewDirection += eye;
-
-	XMFLOAT4X4 viewMatrix;
-	XMStoreFloat4x4(&viewMatrix, XMMatrixTranspose(DirectX::XMMatrixLookAtLH(
-		XMVectorSet(eye.x, eye.y, eye.z, 1.0f),
-		XMVectorSet(viewDirection.x, viewDirection.y, viewDirection.z, 0.0f),
-		XMVectorSet(upDirection.x, upDirection.y, -upDirection.z, 0.0f))));
+	M3dView view = M3dView::active3dView();
+	MDagPath camPath;
+	view.getCamera(camPath);
+	MFnCamera camera(camPath);
 
 	//Projection Matrix
 	MFloatMatrix floatProject = camera.projectionMatrix().transpose();
 	float pm[4][4];
 	floatProject.get(pm);
+	int hej = sizeof(floatProject);
 	XMFLOAT4X4 projectMatrix;
 	projectMatrix._11 = pm[0][0];
 	projectMatrix._12 = pm[0][1];
@@ -1139,32 +1200,48 @@ void CameraChanged(MFnTransform& transform, MFnCamera& camera)
 	projectMatrix._31 = pm[2][0];
 	projectMatrix._32 = pm[2][1];
 	projectMatrix._33 = pm[2][2];
-	projectMatrix._34 = -pm[2][3];
+	projectMatrix._34 = pm[2][3];
 
 	projectMatrix._41 = pm[3][0];
 	projectMatrix._42 = pm[3][1];
-	projectMatrix._43 = -pm[3][2];
+	projectMatrix._43 = pm[3][2];
 	projectMatrix._44 = pm[3][3];
+
+	//projectMatrix._31 = pm[3][0];
+	//projectMatrix._32 = pm[3][1];
+	//projectMatrix._33 = pm[3][2];
+	//projectMatrix._34 = pm[3][3];
+
+	//projectMatrix._41 = pm[2][0];
+	//projectMatrix._42 = pm[2][1];
+	//projectMatrix._43 = pm[2][2];
+	//projectMatrix._44 = pm[2][3];
+
+	MFnTransform transform(camera.parent(0));
+	MMatrix transMatrix = transform.transformationMatrix().transpose().inverse();
+	transMatrix.get(pm);
+	XMFLOAT4X4 viewMatrix(
+		pm[0][0], pm[0][1], pm[0][2], pm[0][3],
+		pm[1][0], pm[1][1], pm[1][2], pm[1][3],
+		pm[2][0], pm[2][1], pm[2][2], pm[2][3],
+		pm[3][0], pm[3][1], pm[3][2], pm[3][3]);
 
 	do
 	{
 		if (sm.cb->freeMem > slotSize)
 		{
+			// Sets head to 0 if there are no place to write
+			if (sm.cb->head == sm.memSize)
+				sm.cb->head = 0;
+
 			// Send data to shared memory
 			localHead = sm.cb->head;
 			// Message header
 			sm.msgHeader.type = TCameraUpdate;
-			sm.msgHeader.padding = slotSize - sm.camDataSize - sm.msgHeaderSize;
-			memcpy((char*)sm.buffer + localHead, &sm.msgHeader, sizeof(sm.msgHeaderSize));
+			sm.msgHeader.byteSize = sizeof(XMFLOAT4X4) * 2 + sm.msgHeaderSize;
+			sm.msgHeader.byteSize += slotSize - sm.msgHeader.byteSize;
+			memcpy((char*)sm.buffer + localHead, &sm.msgHeader, sm.msgHeaderSize);
 			localHead += sm.msgHeaderSize;
-
-			//// View matrix
-			//memcpy((char*)sm.buffer + localHead, &camTranslations, sizeof(MVector));
-			//localHead += sizeof(MVector);
-			//memcpy((char*)sm.buffer + localHead, &viewDirection, sizeof(MVector));
-			//localHead += sizeof(MVector);
-			//memcpy((char*)sm.buffer + localHead, &upDirection, sizeof(MVector));
-			//localHead += sizeof(MVector);
 
 			// View matrix
 			memcpy((char*)sm.buffer + localHead, &viewMatrix, sizeof(XMFLOAT4X4));
@@ -1180,7 +1257,89 @@ void CameraChanged(MFnTransform& transform, MFnCamera& camera)
 
 			break;
 		}
-	} while (sm.cb->freeMem > !slotSize);
+	} while (sm.cb->freeMem >!slotSize);
+}
+
+void CameraCreationCB(MObject& object, void* clientData) {}
+
+void CameraChanged(MFnTransform& transform, MFnCamera& camera)
+{
+	//Projection Matrix
+	MFloatMatrix floatProject = camera.projectionMatrix().transpose();
+	float pm[4][4];
+	floatProject.get(pm);
+	int hej = sizeof(floatProject);
+	XMFLOAT4X4 projectMatrix;
+	projectMatrix._11 = pm[0][0];
+	projectMatrix._12 = pm[0][1];
+	projectMatrix._13 = pm[0][2];
+	projectMatrix._14 = pm[0][3];
+
+	projectMatrix._21 = pm[1][0];
+	projectMatrix._22 = pm[1][1];
+	projectMatrix._23 = pm[1][2];
+	projectMatrix._24 = pm[1][3];
+
+	projectMatrix._31 = pm[2][0];
+	projectMatrix._32 = pm[2][1];
+	projectMatrix._33 = pm[2][2];
+	projectMatrix._34 = pm[2][3];
+
+	projectMatrix._41 = pm[3][0];
+	projectMatrix._42 = pm[3][1];
+	projectMatrix._43 = pm[3][2];
+	projectMatrix._44 = pm[3][3];
+
+	//projectMatrix._31 = pm[3][0];
+	//projectMatrix._32 = pm[3][1];
+	//projectMatrix._33 = pm[3][2];
+	//projectMatrix._34 = pm[3][3];
+
+	//projectMatrix._41 = pm[2][0];
+	//projectMatrix._42 = pm[2][1];
+	//projectMatrix._43 = pm[2][2];
+	//projectMatrix._44 = pm[2][3];
+
+	MMatrix transMatrix = transform.transformationMatrix().transpose().inverse();
+	transMatrix.get(pm);
+	XMFLOAT4X4 viewMatrix(
+		pm[0][0], pm[0][1], pm[0][2], pm[0][3],
+		pm[1][0], pm[1][1], pm[1][2], pm[1][3],
+		pm[2][0], pm[2][1], pm[2][2], pm[2][3],
+		pm[3][0], pm[3][1], pm[3][2], pm[3][3]);
+
+	do
+	{
+		if (sm.cb->freeMem > slotSize)
+		{
+			// Sets head to 0 if there are no place to write
+			if (sm.cb->head == sm.memSize)
+				sm.cb->head = 0;
+
+			// Send data to shared memory
+			localHead = sm.cb->head;
+			// Message header
+			sm.msgHeader.type = TCameraUpdate;
+			sm.msgHeader.byteSize = sizeof(XMFLOAT4X4) * 2 + sm.msgHeaderSize;
+			sm.msgHeader.byteSize += slotSize - sm.msgHeader.byteSize;
+			memcpy((char*)sm.buffer + localHead, &sm.msgHeader, sm.msgHeaderSize);
+			localHead += sm.msgHeaderSize;
+
+			// View matrix
+			memcpy((char*)sm.buffer + localHead, &viewMatrix, sizeof(XMFLOAT4X4));
+			localHead += sizeof(XMFLOAT4X4);
+
+			// Projection matrix
+			memcpy((char*)sm.buffer + localHead, &projectMatrix, sizeof(XMFLOAT4X4));
+			localHead += sizeof(XMFLOAT4X4);
+
+			// Move header
+			sm.cb->head += slotSize;
+			sm.cb->freeMem -= slotSize;
+
+			break;
+		}
+	} while (sm.cb->freeMem >! slotSize);
 }
 
 
@@ -1206,16 +1365,21 @@ void GetLightInformation(MFnLight& light)
 
 	MGlobal::displayInfo(MString() + "Color: " + r + " " + b + " " + g + " " + a);
 	MGlobal::displayInfo(MString() + "Position: " + position.x + " " + position.y + " " + position.z);
-	XMFLOAT3 positionF(position.x, position.y, -position.z);
+	XMFLOAT3 positionF(position.x, position.y, position.z);
 
 	do
 	{
 		if (sm.cb->freeMem > slotSize)
 		{
+			// Sets head to 0 if there are no place to write
+			if (sm.cb->head == sm.memSize)
+				sm.cb->head = 0;
+
 			localHead = sm.cb->head;
 			// Message header
 			sm.msgHeader.type = TLightCreate;
-			sm.msgHeader.padding = slotSize - sm.msgHeaderSize - sizeof(MColor)-sizeof(XMFLOAT3);
+			sm.msgHeader.byteSize = sm.msgHeaderSize + sizeof(MColor) + sizeof(XMFLOAT3);
+			sm.msgHeader.byteSize += slotSize - sm.msgHeader.byteSize;
 			memcpy((char*)sm.buffer + localHead, &sm.msgHeader, sm.msgHeaderSize);
 			localHead += sm.msgHeaderSize;
 
@@ -1231,7 +1395,7 @@ void GetLightInformation(MFnLight& light)
 
 			break;
 		}
-	} while (sm.cb->freeMem > !slotSize);
+	} while (sm.cb->freeMem >! slotSize);
 }
 
 void LightCreationCB(MObject& lightObject, void* clientData)
@@ -1275,7 +1439,7 @@ void LightChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& othe
 			MVector position;
 			position = transform.getTranslation(MSpace::kObject);
 
-			positionF = XMFLOAT3(position.x, position.y, -position.z);
+			positionF = XMFLOAT3(position.x, position.y, position.z);
 			color = light.color();
 		}
 
@@ -1286,11 +1450,16 @@ void LightChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& othe
 		{
 			if (sm.cb->freeMem > slotSize)
 			{
+				// Sets head to 0 if there are no place to write
+				if (sm.cb->head == sm.memSize)
+					sm.cb->head = 0;
+
 				localHead = sm.cb->head;
 				// Message header
 				unsigned int localLight = 0;
 				sm.msgHeader.type = TLightUpdate;
-				sm.msgHeader.padding = slotSize - sm.msgHeaderSize - sizeof(MColor)-sizeof(XMFLOAT3);
+				sm.msgHeader.byteSize = sm.msgHeaderSize + sizeof(MColor) + sizeof(XMFLOAT3);
+				sm.msgHeader.byteSize += slotSize - sm.msgHeader.byteSize;
 				memcpy((char*)sm.buffer + localHead, &sm.msgHeader, sm.msgHeaderSize);
 				localHead += sm.msgHeaderSize;
 
@@ -1306,7 +1475,7 @@ void LightChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& othe
 
 				break;
 			}
-		} while (sm.cb->freeMem > !slotSize);
+		} while (sm.cb->freeMem >! slotSize);
 	}
 }
 
@@ -1336,7 +1505,6 @@ void NodeDestroyedCB(MObject& object, MDGModifier& modifier, void* clientData)
 {
 	MFnMesh mesh(object);
 
-	localHead = sm.cb->head;
 	unsigned int meshIndex = meshNames.length();
 	for (size_t i = 0; i < meshNames.length(); i++)
 	{
@@ -1346,17 +1514,29 @@ void NodeDestroyedCB(MObject& object, MDGModifier& modifier, void* clientData)
 		}
 	}
 
-	// Message header
-	sm.msgHeader.type = TMeshDestroyed;
-	sm.msgHeader.padding = slotSize - sm.msgHeaderSize - sizeof(int);
-	memcpy((char*)sm.buffer + localHead, &sm.msgHeader, sm.msgHeaderSize);
-	localHead += sm.msgHeaderSize;
+	do
+	{
+		if (sm.cb->freeMem > slotSize)
+		{
+			// Sets head to 0 if there are no place to write
+			if (sm.cb->head == sm.memSize)
+				sm.cb->head = 0;
+			localHead = sm.cb->head;
 
-	// Node index
-	memcpy((char*)sm.buffer + localHead, &meshIndex, sizeof(int));
-	localHead += sizeof(int);
+			// Message header
+			sm.msgHeader.type = TMeshDestroyed;
+			sm.msgHeader.byteSize = sm.msgHeaderSize - sizeof(int);
+			sm.msgHeader.byteSize += slotSize - sm.msgHeader.byteSize;
+			memcpy((char*)sm.buffer + localHead, &sm.msgHeader, sm.msgHeaderSize);
+			localHead += sm.msgHeaderSize;
 
-	// Move header
-	sm.cb->freeMem -= slotSize;
-	sm.cb->head += slotSize;
+			// Mesh index
+			memcpy((char*)sm.buffer + localHead, &meshIndex, sizeof(int));
+			localHead += sizeof(int);
+
+			// Move header
+			sm.cb->freeMem -= slotSize;
+			sm.cb->head += slotSize;
+		}
+	} while (sm.cb->freeMem >! slotSize);
 }

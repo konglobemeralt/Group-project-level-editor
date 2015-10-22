@@ -2,7 +2,8 @@
 
 SharedMemory::SharedMemory()
 {
-	OpenMemory(100);
+	OpenMemory(1.0f / 256.0f);
+	//OpenMemory(100);
 	slotSize = 256;
 	cameraData = new CameraData();
 	view = new XMFLOAT4X4();
@@ -24,7 +25,7 @@ SharedMemory::~SharedMemory()
 	delete cameraData;
 }
 
-void SharedMemory::OpenMemory(size_t size)
+void SharedMemory::OpenMemory(float size)
 {
 	size *= 1024 * 1024;
 	memSize = size;
@@ -35,7 +36,7 @@ void SharedMemory::OpenMemory(size_t size)
 		PAGE_READWRITE,
 		(DWORD)0,
 		size,
-		L"Global/CircularBuffer2");
+		L"Global/CircularBuffer");
 	if (GetLastError() == ERROR_ALREADY_EXISTS)
 		OutputDebugStringA("CircularBuffer allready exist\n");
 
@@ -54,8 +55,6 @@ void SharedMemory::OpenMemory(size_t size)
 		cb->head = 0;
 		cb->tail = 0;
 		cb->freeMem = size;
-		cb->readersCount = 0;
-		cb->allRead = 0;
 	}
 
 	// Main data
@@ -65,7 +64,7 @@ void SharedMemory::OpenMemory(size_t size)
 		PAGE_READWRITE,
 		(DWORD)0,
 		size,
-		L"Global/MainData2");
+		L"Global/MainData");
 	if (GetLastError() == ERROR_ALREADY_EXISTS)
 		OutputDebugStringA("MainData allready exist\n");
 
@@ -84,11 +83,28 @@ int SharedMemory::ReadMSGHeader()
 {
 	if (cb->freeMem < memSize)
 	{
+		// Sets tail to 0 if there are no place to read
+		if (cb->tail == memSize)
+			cb->tail = 0;
+
 		localTail = cb->tail;
+		localFreeMem = 0;
 
 		// Message header
 		memcpy(&msgHeader, (char*)buffer + localTail, sizeof(MSGHeader));
 		localTail += sizeof(MSGHeader);
+
+		// Check if there are something to read else move tail to 0
+		if (msgHeader.type > TAmount)
+		{
+			localFreeMem += (memSize - cb->tail);
+			cb->tail = 0;
+			localTail = cb->tail;
+
+			// Read message header again at 0
+			memcpy(&msgHeader, (char*)buffer + localTail, sizeof(MSGHeader));
+			localTail += sizeof(MSGHeader);
+		}
 
 		return msgHeader.type;
 	}
@@ -154,8 +170,8 @@ void SharedMemory::ReadMemory(unsigned int type)
 			}
 
 			// Move tail
-			cb->freeMem += (localTail - cb->tail) + msgHeader.padding;
-			cb->tail += (localTail - cb->tail) + msgHeader.padding;
+			cb->freeMem += msgHeader.byteSize + localFreeMem;
+			cb->tail += msgHeader.byteSize;
 		}
 	}
 	else if (type == TAddedVertex)
@@ -169,9 +185,12 @@ void SharedMemory::ReadMemory(unsigned int type)
 		localTail += sizeof(int);
 
 		// Delete and rezise
-		delete[] meshes[localMesh].pos;
-		delete[] meshes[localMesh].uv;
-		delete[] meshes[localMesh].normal;
+		meshes[localMesh].meshesBuffer[0]->Release();
+		meshes[localMesh].meshesBuffer[1]->Release();
+		meshes[localMesh].meshesBuffer[2]->Release();
+ 		//delete[] meshes[localMesh].pos;
+		//delete[] meshes[localMesh].uv;
+		//delete[] meshes[localMesh].normal;
 
 		meshes[localMesh].pos = new XMFLOAT3[meshes[localMesh].vertexCount];
 		meshes[localMesh].uv = new XMFLOAT2[meshes[localMesh].vertexCount];
@@ -187,8 +206,8 @@ void SharedMemory::ReadMemory(unsigned int type)
 
 
 		// Move tail
-		cb->freeMem += (localTail - cb->tail) + msgHeader.padding;
-		cb->tail += (localTail - cb->tail) + msgHeader.padding;
+		cb->freeMem += msgHeader.byteSize + localFreeMem;
+		cb->tail += msgHeader.byteSize;
 	}
 	else if (type == TMaterialUpdate)
 	{
@@ -220,8 +239,8 @@ void SharedMemory::ReadMemory(unsigned int type)
 		}
 
 		// Move tail
-		cb->freeMem += (localTail - cb->tail) + msgHeader.padding;
-		cb->tail += (localTail - cb->tail) + msgHeader.padding;
+		cb->freeMem += msgHeader.byteSize + localFreeMem;
+		cb->tail += msgHeader.byteSize;
 	}
 	else if (type == TtransformUpdate)
 	{

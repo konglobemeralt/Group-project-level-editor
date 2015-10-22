@@ -97,6 +97,8 @@ void D3D::Update()
 	if (smType == TMeshCreate)
 	{
 		ReadMemory(smType);
+		//if (meshes.back().vertexCount > 60)
+		//	int hej = 0;
 		meshes.back().meshesBuffer[0] = CreateMesh(sizeof(XMFLOAT3) * meshes.back().vertexCount, meshes.back().pos, meshes.back().vertexCount);
 		meshes.back().meshesBuffer[1] = CreateMesh(sizeof(XMFLOAT2) * meshes.back().vertexCount, meshes.back().uv, meshes.back().vertexCount);
 		meshes.back().meshesBuffer[2] = CreateMesh(sizeof(XMFLOAT3) * meshes.back().vertexCount, meshes.back().normal, meshes.back().vertexCount);
@@ -129,6 +131,16 @@ void D3D::Update()
 
 		devcon->Unmap(meshes[localMesh].meshesBuffer[0], 0);
 
+		// UV
+		devcon->Map(meshes[localMesh].meshesBuffer[1], 0, D3D11_MAP_WRITE_DISCARD, 0, &mapSub);
+		meshes[localMesh].uv = (XMFLOAT2*)mapSub.pData;
+
+		// UV data
+		memcpy(meshes[localMesh].uv, (char*)buffer + localTail, meshes[localMesh].vertexCount * sizeof(XMFLOAT2));
+		localTail += meshes[localMesh].vertexCount * sizeof(XMFLOAT2);
+
+		devcon->Unmap(meshes[localMesh].meshesBuffer[1], 0);
+
 		// Normals
 		devcon->Map(meshes[localMesh].meshesBuffer[2], 0, D3D11_MAP_WRITE_DISCARD, 0, &mapSub);
 		meshes[localMesh].normal = (XMFLOAT3*)mapSub.pData;
@@ -140,8 +152,8 @@ void D3D::Update()
 		devcon->Unmap(meshes[localMesh].meshesBuffer[2], 0);
 
 		// Move tail
-		cb->freeMem += (localTail - cb->tail) + msgHeader.padding;
-		cb->tail += (localTail - cb->tail) + msgHeader.padding;
+		cb->freeMem += msgHeader.byteSize + localFreeMem;
+		cb->tail += msgHeader.byteSize;
 	}
 	else if (smType == TNormalUpdate)
 	{
@@ -160,8 +172,8 @@ void D3D::Update()
 		devcon->Unmap(meshes[localMesh].meshesBuffer[2], 0);
 
 		// Move tail
-		cb->freeMem += (localTail - cb->tail) + msgHeader.padding;
-		cb->tail += (localTail - cb->tail) + msgHeader.padding;
+		cb->freeMem += msgHeader.byteSize + localFreeMem;
+		cb->tail += msgHeader.byteSize;
 	}
 	else if (smType == TUVUpdate)
 	{
@@ -180,8 +192,8 @@ void D3D::Update()
 		devcon->Unmap(meshes[localMesh].meshesBuffer[1], 0);
 
 		// Move tail
-		cb->freeMem += (localTail - cb->tail) + msgHeader.padding;
-		cb->tail += (localTail - cb->tail) + msgHeader.padding;
+		cb->freeMem += msgHeader.byteSize + localFreeMem;
+		cb->tail += msgHeader.byteSize;
 	}
 	else if (smType == TMaterialUpdate)
 	{
@@ -202,7 +214,7 @@ void D3D::Update()
 
 		devcon->Unmap(viewMatrix, 0);
 
-		// View
+		// Projection
 		devcon->Map(projectionMatrix, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapSub);
 		projection = (XMFLOAT4X4*)mapSub.pData;
 
@@ -261,11 +273,6 @@ void D3D::Update()
 		ReadMemory(smType);
 
 		// Delete mesh with the given index
-		delete[] meshes[localMesh].pos;
-		delete[] meshes[localMesh].uv;
-		delete[] meshes[localMesh].normal;
-		delete meshes[localMesh].transform;
-
 		meshes[localMesh].meshesBuffer[0]->Release();
 		meshes[localMesh].meshesBuffer[1]->Release();
 		meshes[localMesh].meshesBuffer[2]->Release();
@@ -277,6 +284,11 @@ void D3D::Update()
 		meshes[localMesh].meshesBuffer[2] = NULL;
 		meshes[localMesh].transformBuffer = NULL;
 		meshes[localMesh].colorBuffer = NULL;
+
+		delete[] meshes[localMesh].pos;
+		delete[] meshes[localMesh].uv;
+		delete[] meshes[localMesh].normal;
+		delete meshes[localMesh].transform;
 	}
 }
 
@@ -317,8 +329,8 @@ void D3D::Render()
 void D3D::Create()
 {
 	// CAMERA
-	XMStoreFloat4x4(view, XMMatrixTranspose(XMMatrixLookAtLH(XMVectorSet(0.0f, 2.0f, -2.0f, 0.0f), XMVectorSet(0.0f, -0.5f, 0.5f, 0.0f), XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f))));
-	XMStoreFloat4x4(projection, XMMatrixTranspose(XMMatrixPerspectiveFovLH(XM_PI * 0.45f, 640.0f / 480.0f, 1.0f, 100.0f)));
+	XMStoreFloat4x4(view, XMMatrixTranspose(XMMatrixLookAtRH(XMVectorSet(0.0f, 2.0f, 2.0f, 0.0f), XMVectorSet(0.0f, -1.0f, 1.0f, 0.0f), XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f))));
+	XMStoreFloat4x4(projection, XMMatrixTranspose(XMMatrixPerspectiveFovRH(XM_PI * 0.45f, 640.0f / 480.0f, 1.0f, 1000.0f)));
 	viewMatrix = CreateConstantBuffer(sizeof(XMFLOAT4X4), view);
 	projectionMatrix = CreateConstantBuffer(sizeof(XMFLOAT4X4), projection);
 

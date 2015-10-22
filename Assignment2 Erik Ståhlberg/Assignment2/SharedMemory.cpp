@@ -4,10 +4,11 @@ SharedMemory::SharedMemory(){}
 
 SharedMemory::~SharedMemory(){}
 
-char* SharedMemory::OpenMemory(size_t size)
+char* SharedMemory::OpenMemory(float size)
 {
 	//SE_CREATE_GLOBAL_NAME;
 	size *= 1024 * 1024;
+	memSize = size;
 	// Circular buffer data
 	fmCB = CreateFileMapping(
 		INVALID_HANDLE_VALUE,
@@ -15,7 +16,7 @@ char* SharedMemory::OpenMemory(size_t size)
 		PAGE_READWRITE,
 		(DWORD)0,
 		sizeof(CircBuffer),
-		L"Global/CircularBuffer2");
+		L"Global/CircularBuffer");
 	if (GetLastError() == ERROR_ALREADY_EXISTS)
 		return "CircularBuffer allready exist\n";
 
@@ -34,8 +35,6 @@ char* SharedMemory::OpenMemory(size_t size)
 		cb->head = 0;
 		cb->tail = 0;
 		cb->freeMem = size;
-		cb->readersCount = 0;
-		cb->allRead = 0;
 	}
 
 	// Main data
@@ -45,7 +44,7 @@ char* SharedMemory::OpenMemory(size_t size)
 		PAGE_READWRITE,
 		(DWORD)0,
 		size,
-		L"Global/MainData2");
+		L"Global/MainData");
 	if (GetLastError() == ERROR_ALREADY_EXISTS)
 		return "MainData allready exist\n";
 
