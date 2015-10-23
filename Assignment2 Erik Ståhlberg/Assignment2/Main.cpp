@@ -62,8 +62,8 @@ EXPORT MStatus initializePlugin(MObject obj)
 	sm.cbSize = 20;
 	sm.msgHeaderSize = 8;
 
-	MGlobal::displayInfo(sm.OpenMemory(1.0f/256.0f));
-	//MGlobal::displayInfo(sm.OpenMemory(100));
+	//MGlobal::displayInfo(sm.OpenMemory(1.0f/256.0f));
+	MGlobal::displayInfo(sm.OpenMemory(100));
 
 	GetSceneData();
 
@@ -1181,42 +1181,19 @@ void GetCameraInformation()
 	view.getCamera(camPath);
 	MFnCamera camera(camPath);
 
-	//Projection Matrix
-	MFloatMatrix floatProject = camera.projectionMatrix().transpose();
+	// Projection matrix
+	MFloatMatrix floatProject = camera.projectionMatrix();
 	float pm[4][4];
 	floatProject.get(pm);
-	int hej = sizeof(floatProject);
-	XMFLOAT4X4 projectMatrix;
-	projectMatrix._11 = pm[0][0];
-	projectMatrix._12 = pm[0][1];
-	projectMatrix._13 = pm[0][2];
-	projectMatrix._14 = pm[0][3];
 
-	projectMatrix._21 = pm[1][0];
-	projectMatrix._22 = pm[1][1];
-	projectMatrix._23 = pm[1][2];
-	projectMatrix._24 = pm[1][3];
+	XMFLOAT4X4 projectMatrix(
+		pm[0][0], pm[0][1], pm[0][2], pm[0][3],
+		pm[1][0], pm[1][1], pm[1][2], pm[1][3],
+		pm[2][0], pm[2][1], -pm[2][2], pm[2][3],
+		pm[3][0], pm[3][1], -pm[3][2], pm[3][3]);
+	XMStoreFloat4x4(&projectMatrix, XMMatrixTranspose(XMLoadFloat4x4(&projectMatrix)));
 
-	projectMatrix._31 = pm[2][0];
-	projectMatrix._32 = pm[2][1];
-	projectMatrix._33 = pm[2][2];
-	projectMatrix._34 = pm[2][3];
-
-	projectMatrix._41 = pm[3][0];
-	projectMatrix._42 = pm[3][1];
-	projectMatrix._43 = pm[3][2];
-	projectMatrix._44 = pm[3][3];
-
-	//projectMatrix._31 = pm[3][0];
-	//projectMatrix._32 = pm[3][1];
-	//projectMatrix._33 = pm[3][2];
-	//projectMatrix._34 = pm[3][3];
-
-	//projectMatrix._41 = pm[2][0];
-	//projectMatrix._42 = pm[2][1];
-	//projectMatrix._43 = pm[2][2];
-	//projectMatrix._44 = pm[2][3];
-
+	// View matrix
 	MFnTransform transform(camera.parent(0));
 	MMatrix transMatrix = transform.transformationMatrix().transpose().inverse();
 	transMatrix.get(pm);
@@ -1264,42 +1241,19 @@ void CameraCreationCB(MObject& object, void* clientData) {}
 
 void CameraChanged(MFnTransform& transform, MFnCamera& camera)
 {
-	//Projection Matrix
-	MFloatMatrix floatProject = camera.projectionMatrix().transpose();
+	// Projection matrix
+	MFloatMatrix floatProject = camera.projectionMatrix();
 	float pm[4][4];
 	floatProject.get(pm);
-	int hej = sizeof(floatProject);
-	XMFLOAT4X4 projectMatrix;
-	projectMatrix._11 = pm[0][0];
-	projectMatrix._12 = pm[0][1];
-	projectMatrix._13 = pm[0][2];
-	projectMatrix._14 = pm[0][3];
 
-	projectMatrix._21 = pm[1][0];
-	projectMatrix._22 = pm[1][1];
-	projectMatrix._23 = pm[1][2];
-	projectMatrix._24 = pm[1][3];
+	XMFLOAT4X4 projectMatrix(
+		pm[0][0], pm[0][1], pm[0][2], pm[0][3],
+		pm[1][0], pm[1][1], pm[1][2], pm[1][3],
+		pm[2][0], pm[2][1], -pm[2][2], pm[2][3],
+		pm[3][0], pm[3][1], -pm[3][2], pm[3][3]);
+	XMStoreFloat4x4(&projectMatrix, XMMatrixTranspose(XMLoadFloat4x4(&projectMatrix)));
 
-	projectMatrix._31 = pm[2][0];
-	projectMatrix._32 = pm[2][1];
-	projectMatrix._33 = pm[2][2];
-	projectMatrix._34 = pm[2][3];
-
-	projectMatrix._41 = pm[3][0];
-	projectMatrix._42 = pm[3][1];
-	projectMatrix._43 = pm[3][2];
-	projectMatrix._44 = pm[3][3];
-
-	//projectMatrix._31 = pm[3][0];
-	//projectMatrix._32 = pm[3][1];
-	//projectMatrix._33 = pm[3][2];
-	//projectMatrix._34 = pm[3][3];
-
-	//projectMatrix._41 = pm[2][0];
-	//projectMatrix._42 = pm[2][1];
-	//projectMatrix._43 = pm[2][2];
-	//projectMatrix._44 = pm[2][3];
-
+	// View matrix
 	MMatrix transMatrix = transform.transformationMatrix().transpose().inverse();
 	transMatrix.get(pm);
 	XMFLOAT4X4 viewMatrix(
@@ -1307,6 +1261,7 @@ void CameraChanged(MFnTransform& transform, MFnCamera& camera)
 		pm[1][0], pm[1][1], pm[1][2], pm[1][3],
 		pm[2][0], pm[2][1], pm[2][2], pm[2][3],
 		pm[3][0], pm[3][1], pm[3][2], pm[3][3]);
+
 
 	do
 	{

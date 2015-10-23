@@ -265,6 +265,7 @@ void D3D::Update()
 
 		devcon->Unmap(light.lightBuffer, 0);
 
+		// Move tail
 		cb->tail += slotSize;
 		cb->freeMem += slotSize;
 	}
