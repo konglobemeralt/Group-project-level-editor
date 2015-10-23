@@ -62,8 +62,20 @@ EXPORT MStatus initializePlugin(MObject obj)
 	sm.cbSize = 20;
 	sm.msgHeaderSize = 8;
 
+	MString memoryString;
 	//MGlobal::displayInfo(sm.OpenMemory(1.0f/256.0f));
-	MGlobal::displayInfo(sm.OpenMemory(100));
+	//MGlobal::displayInfo(sm.OpenMemory(100));
+	memoryString = sm.OpenMemory(100);
+	if (memoryString != "Shared memory open success!")
+	{
+		MGlobal::displayInfo(memoryString);
+		sm.CloseMemory();
+		return MStatus::kFailure;
+	}
+	else
+	{
+		MGlobal::displayInfo(memoryString);
+	}
 
 	GetSceneData();
 

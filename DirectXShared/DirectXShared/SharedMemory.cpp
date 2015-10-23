@@ -2,8 +2,8 @@
 
 SharedMemory::SharedMemory()
 {
-	OpenMemory(1.0f / 256.0f);
-	//OpenMemory(100);
+	//OpenMemory(1.0f / 256.0f);
+	OpenMemory(100);
 	slotSize = 256;
 	cameraData = new CameraData();
 	view = new XMFLOAT4X4();
@@ -36,7 +36,7 @@ void SharedMemory::OpenMemory(float size)
 		PAGE_READWRITE,
 		(DWORD)0,
 		size,
-		L"Global/CircularBuffer");
+		L"Global/CircularBuffer2");
 	if (GetLastError() == ERROR_ALREADY_EXISTS)
 		OutputDebugStringA("CircularBuffer allready exist\n");
 
@@ -64,7 +64,7 @@ void SharedMemory::OpenMemory(float size)
 		PAGE_READWRITE,
 		(DWORD)0,
 		size,
-		L"Global/MainData");
+		L"Global/MainData2");
 	if (GetLastError() == ERROR_ALREADY_EXISTS)
 		OutputDebugStringA("MainData allready exist\n");
 
