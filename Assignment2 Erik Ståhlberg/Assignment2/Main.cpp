@@ -63,8 +63,7 @@ EXPORT MStatus initializePlugin(MObject obj)
 	sm.msgHeaderSize = 8;
 
 	MString memoryString;
-	//MGlobal::displayInfo(sm.OpenMemory(1.0f/256.0f));
-	//MGlobal::displayInfo(sm.OpenMemory(100));
+	//sm.OpenMemory(1.0f / 256.0f)
 	memoryString = sm.OpenMemory(100);
 	if (memoryString != "Shared memory open success!")
 	{
@@ -1263,6 +1262,9 @@ void CameraChanged(MFnTransform& transform, MFnCamera& camera)
 		pm[1][0], pm[1][1], pm[1][2], pm[1][3],
 		pm[2][0], pm[2][1], -pm[2][2], pm[2][3],
 		pm[3][0], pm[3][1], -pm[3][2], pm[3][3]);
+	//projectMatrix._11 = 1.333333333333f;
+	//projectMatrix._22 = 1.413f;
+	// Try to multiply these values with the height and width of directX window
 	XMStoreFloat4x4(&projectMatrix, XMMatrixTranspose(XMLoadFloat4x4(&projectMatrix)));
 
 	// View matrix
