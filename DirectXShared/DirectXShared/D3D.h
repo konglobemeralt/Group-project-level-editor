@@ -4,8 +4,8 @@
 #include "SharedMemory.h"
 #include "WICTextureLoader.h"
 
-#define WINDOWSWIDTH 640
-#define WINDOWSHEIGHT 480
+#define WINDOWSWIDTH 640.0f
+#define WINDOWSHEIGHT 480.0f
 
 class D3D : SharedMemory
 {
@@ -22,6 +22,9 @@ private:
 	// TEMP
 	XMFLOAT4X4 worldTemp;
 	ID3D11Buffer* worldTempBuffer;
+
+	float windowWidth;
+	float windowHeight;
 
 	// Creators
 	void Create();

@@ -4,6 +4,8 @@ D3D::D3D() {}
 
 D3D::D3D(HWND win)
 {
+	windowWidth = WINDOWSWIDTH;
+	windowHeight = WINDOWSHEIGHT;
 	// create a struct to hold information about the swap chain
 	DXGI_SWAP_CHAIN_DESC scd;
 
@@ -221,6 +223,8 @@ void D3D::Update()
 		// Projection matrix
 		memcpy(projection, (char*)buffer + localTail, sizeof(XMFLOAT4X4));
 		localTail += sizeof(XMFLOAT4X4);
+		// Calculate aspect ratio based on this window size
+		projection->_11 = projection->_22 / (windowWidth / windowHeight);
 
 		devcon->Unmap(projectionMatrix, 0);
 

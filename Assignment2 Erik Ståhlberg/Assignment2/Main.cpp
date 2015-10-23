@@ -1193,20 +1193,14 @@ void GetCameraInformation()
 	MFnCamera camera(camPath);
 
 	// Projection matrix
-	MFloatMatrix floatProject = camera.projectionMatrix();
-	float pm[4][4];
-	floatProject.get(pm);
-
-	XMFLOAT4X4 projectMatrix(
-		pm[0][0], pm[0][1], pm[0][2], pm[0][3],
-		pm[1][0], pm[1][1], pm[1][2], pm[1][3],
-		pm[2][0], pm[2][1], -pm[2][2], pm[2][3],
-		pm[3][0], pm[3][1], -pm[3][2], pm[3][3]);
-	XMStoreFloat4x4(&projectMatrix, XMMatrixTranspose(XMLoadFloat4x4(&projectMatrix)));
+	MFloatMatrix projectionMatrix = camera.projectionMatrix();
+	projectionMatrix[2][2] = -projectionMatrix[2][2];
+	projectionMatrix[3][2] = -projectionMatrix[3][2];
 
 	// View matrix
 	MFnTransform transform(camera.parent(0));
 	MMatrix transMatrix = transform.transformationMatrix().transpose().inverse();
+	float pm[4][4];
 	transMatrix.get(pm);
 	XMFLOAT4X4 viewMatrix(
 		pm[0][0], pm[0][1], pm[0][2], pm[0][3],
@@ -1236,7 +1230,7 @@ void GetCameraInformation()
 			localHead += sizeof(XMFLOAT4X4);
 
 			// Projection matrix
-			memcpy((char*)sm.buffer + localHead, &projectMatrix, sizeof(XMFLOAT4X4));
+			memcpy((char*)sm.buffer + localHead, &projectionMatrix.transpose(), sizeof(XMFLOAT4X4));
 			localHead += sizeof(XMFLOAT4X4);
 
 			// Move header
@@ -1253,21 +1247,12 @@ void CameraCreationCB(MObject& object, void* clientData) {}
 void CameraChanged(MFnTransform& transform, MFnCamera& camera)
 {
 	// Projection matrix
-	MFloatMatrix floatProject = camera.projectionMatrix();
-	float pm[4][4];
-	floatProject.get(pm);
-
-	XMFLOAT4X4 projectMatrix(
-		pm[0][0], pm[0][1], pm[0][2], pm[0][3],
-		pm[1][0], pm[1][1], pm[1][2], pm[1][3],
-		pm[2][0], pm[2][1], -pm[2][2], pm[2][3],
-		pm[3][0], pm[3][1], -pm[3][2], pm[3][3]);
-	//projectMatrix._11 = 1.333333333333f;
-	//projectMatrix._22 = 1.413f;
-	// Try to multiply these values with the height and width of directX window
-	XMStoreFloat4x4(&projectMatrix, XMMatrixTranspose(XMLoadFloat4x4(&projectMatrix)));
+	MFloatMatrix projectionMatrix = camera.projectionMatrix();
+	projectionMatrix[2][2] = -projectionMatrix[2][2];
+	projectionMatrix[3][2] = -projectionMatrix[3][2];
 
 	// View matrix
+	float pm[4][4];
 	MMatrix transMatrix = transform.transformationMatrix().transpose().inverse();
 	transMatrix.get(pm);
 	XMFLOAT4X4 viewMatrix(
@@ -1275,7 +1260,6 @@ void CameraChanged(MFnTransform& transform, MFnCamera& camera)
 		pm[1][0], pm[1][1], pm[1][2], pm[1][3],
 		pm[2][0], pm[2][1], pm[2][2], pm[2][3],
 		pm[3][0], pm[3][1], pm[3][2], pm[3][3]);
-
 
 	do
 	{
@@ -1299,7 +1283,7 @@ void CameraChanged(MFnTransform& transform, MFnCamera& camera)
 			localHead += sizeof(XMFLOAT4X4);
 
 			// Projection matrix
-			memcpy((char*)sm.buffer + localHead, &projectMatrix, sizeof(XMFLOAT4X4));
+			memcpy((char*)sm.buffer + localHead, &projectionMatrix.transpose(), sizeof(XMFLOAT4X4));
 			localHead += sizeof(XMFLOAT4X4);
 
 			// Move header
