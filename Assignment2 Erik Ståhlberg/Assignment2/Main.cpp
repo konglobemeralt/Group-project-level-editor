@@ -38,9 +38,6 @@ int totalTime = 0.0f;
 
 MCallbackIdArray callbackIds;
 
-MVector lastCamPos;
-MVector diff;
-
 SharedMemory sm;
 unsigned int localHead;
 unsigned int slotSize;
@@ -1230,7 +1227,7 @@ void GetCameraInformation()
 			localHead += sizeof(XMFLOAT4X4);
 
 			// Projection matrix
-			memcpy((char*)sm.buffer + localHead, &projectionMatrix.transpose(), sizeof(XMFLOAT4X4));
+			memcpy((char*)sm.buffer + localHead, &projectionMatrix.transpose(), sizeof(MFloatMatrix));
 			localHead += sizeof(XMFLOAT4X4);
 
 			// Move header
@@ -1261,6 +1258,8 @@ void CameraChanged(MFnTransform& transform, MFnCamera& camera)
 		pm[2][0], pm[2][1], pm[2][2], pm[2][3],
 		pm[3][0], pm[3][1], pm[3][2], pm[3][3]);
 
+	MGlobal::displayInfo(MString("KOLLA: ") + transform.transformationMatrix()[3][1]);
+
 	do
 	{
 		if (sm.cb->freeMem > slotSize)
@@ -1283,7 +1282,7 @@ void CameraChanged(MFnTransform& transform, MFnCamera& camera)
 			localHead += sizeof(XMFLOAT4X4);
 
 			// Projection matrix
-			memcpy((char*)sm.buffer + localHead, &projectionMatrix.transpose(), sizeof(XMFLOAT4X4));
+			memcpy((char*)sm.buffer + localHead, &projectionMatrix.transpose(), sizeof(MFloatMatrix));
 			localHead += sizeof(XMFLOAT4X4);
 
 			// Move header
@@ -1292,7 +1291,7 @@ void CameraChanged(MFnTransform& transform, MFnCamera& camera)
 
 			break;
 		}
-	} while (sm.cb->freeMem >! slotSize);
+	} while (sm.cb->freeMem > !slotSize);
 }
 
 
