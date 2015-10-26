@@ -59,7 +59,6 @@ public:
 	{
 		XMINT4 textureExist;
 		XMFLOAT4 materialColor;
-		//XMINT4 textureExist;
 	};
 	struct MeshData
 	{
@@ -75,6 +74,7 @@ public:
 		//Material:
 		ID3D11Buffer* colorBuffer;
 		meshTexture meshTex;
+		ID3D11ShaderResourceView* meshTextures;
 
 		//Texture:
 		unsigned int textureSize;
@@ -87,7 +87,7 @@ public:
 	unsigned int meshSize;
 
 	// TEXTURES
-	vector<ID3D11ShaderResourceView*> meshTextures;
+	//vector<ID3D11ShaderResourceView*> meshTextures;
 
 	// TRANSFORM
 	vector<string> tranformNames;

@@ -19,17 +19,13 @@ public:
 	void Render();
 
 private:
-	// TEMP
-	XMFLOAT4X4 worldTemp;
-	ID3D11Buffer* worldTempBuffer;
-
 	float windowWidth;
 	float windowHeight;
 
 	// Creators
 	void Create();
 	ID3D11Buffer* CreateMesh(size_t size, const void* data, size_t vertexCount);
-	void CreateTexture();
+	void CreateTexture(int lMesh);
 	ID3D11Buffer* D3D::CreateConstantBuffer(size_t size, const void* data);
 	void CreateShaders();
 

@@ -20,7 +20,6 @@ void TransformCreationCB(MObject& object, void* clientData);
 void TransformChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& otherPlug, void* clientData);
 
 void GetCameraInformation();
-void CameraCreationCB(MObject& object, void* clientData);
 void CameraChanged(MFnTransform& transform, MFnCamera& camera);
 
 void GetLightInformation(MFnLight& light);
@@ -42,7 +41,6 @@ SharedMemory sm;
 unsigned int localHead;
 unsigned int slotSize;
 MStringArray meshNames;
-MStringArray matNames;
 MStringArray meshMatNames;
 
 EXPORT MStatus initializePlugin(MObject obj)
@@ -140,6 +138,7 @@ void GetSceneData()
 		itLight.next();
 	}
 
+	// Cameras
 	MItDag itCamera(MItDag::kDepthFirst, MFn::kCamera);
 	while (!itCamera.isDone())
 	{
@@ -148,32 +147,32 @@ void GetSceneData()
 		itCamera.next();
 	}
 
+	// Lambert Materials
 	MItDependencyNodes itLambert(MFn::kLambert);
 	while (!itLambert.isDone())
 	{
 		MFnLambertShader lambertShader(itLambert.item());
 
-		matNames.append(lambertShader.name());
 		callbackIds.append(MNodeMessage::addAttributeChangedCallback(lambertShader.object(), shaderchanged));
 		itLambert.next();
 	}
 
+	// Blinn Materials
 	MItDependencyNodes itBlinn(MFn::kBlinn);
 	while (!itBlinn.isDone())
 	{
 		MFnBlinnShader blinnShader(itBlinn.item());
 
-		matNames.append(blinnShader.name());
 		callbackIds.append(MNodeMessage::addAttributeChangedCallback(blinnShader.object(), shaderchanged));
 		itBlinn.next();
 	}
 
+	// Phong Materials
 	MItDependencyNodes itPhong(MFn::kPhong);
 	while (!itPhong.isDone())
 	{
 		MFnPhongShader phongShader(itPhong.item());
 
-		matNames.append(phongShader.name());
 		callbackIds.append(MNodeMessage::addAttributeChangedCallback(phongShader.object(), shaderchanged));
 		itPhong.next();
 	}
@@ -227,9 +226,6 @@ void GetMeshInformation(MFnMesh& mesh)
 			pm[3][0], pm[3][1], pm[3][2], pm[3][3]);
 
 		// MATERIAL:
-		MGlobal::displayInfo(mesh.name());
-
-		unsigned int instanceNumber = 0;
 		MObjectArray shaders;
 		MIntArray indices;
 		MPlugArray connections;
@@ -240,7 +236,7 @@ void GetMeshInformation(MFnMesh& mesh)
 		MFnPhongShader phongShader;
 
 		// Find the shadingReasourceGroup
-		mesh.getConnectedShaders(instanceNumber, shaders, indices);
+		mesh.getConnectedShaders(0, shaders, indices);
 		MFnDependencyNode shaderGroup(shaders[0]);
 		MGlobal::displayInfo(shaderGroup.name());
 		MPlug shaderPlug = shaderGroup.findPlug("surfaceShader");
@@ -250,7 +246,6 @@ void GetMeshInformation(MFnMesh& mesh)
 		// Find the material and then color
 		if (connections[0].node().hasFn(MFn::kLambert))
 		{
-			//MFnLambertShader lambertShader(connections[0].node());
 			lambertShader.setObject(connections[0].node());
 			MGlobal::displayInfo(lambertShader.name());
 			color = lambertShader.color();
@@ -259,7 +254,6 @@ void GetMeshInformation(MFnMesh& mesh)
 		}
 		else if (connections[0].node().hasFn(MFn::kBlinn))
 		{
-			//MFnBlinnShader blinnShader(connections[0].node());
 			blinnShader.setObject(connections[0].node());
 			MGlobal::displayInfo(blinnShader.name());
 			color = blinnShader.color();
@@ -268,7 +262,6 @@ void GetMeshInformation(MFnMesh& mesh)
 		}
 		else if (connections[0].node().hasFn(MFn::kPhong))
 		{
-			//MFnPhongShader phongShader(connections[0].node());
 			phongShader.setObject(connections[0].node());
 			MGlobal::displayInfo(phongShader.name());
 			color = phongShader.color();
@@ -276,14 +269,14 @@ void GetMeshInformation(MFnMesh& mesh)
 			meshMatNames.append(phongShader.name());
 		}
 
+		//Texture:
 		MObjectArray Files;
 		MString filename;
 		int pathSize;
 		int texExist = 0;
-
-		//Texture:
 		MPlugArray textureConnect;
 		MPlug texturePlug;
+
 		if (whatMaterial == 1)
 		{
 			texturePlug = lambertShader.findPlug("color");
@@ -375,7 +368,7 @@ void GetMeshInformation(MFnMesh& mesh)
 					memcpy((char*)sm.buffer + localHead, &color, sizeof(MColor));
 					localHead += sizeof(MColor);
 
-					//Texture do not exist
+					//Bool for Texture
 					XMINT4 ha = XMINT4(texExist, 0, 0, 0);
 					memcpy((char*)sm.buffer + localHead, &ha.x, sizeof(int));
 					localHead += sizeof(int);
@@ -412,7 +405,6 @@ void MeshCreationCB(MObject& object, void* clientData)
 
 void MeshChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& otherPlug, void* clientData)
 {
-	MGlobal::displayInfo("PLUGNAME: " + plug.name());
 	// check if the plug p_Plug has in its name "doubleSided", which is an attribute that when is set we know that the mesh is finally available.
 	// Only used for the creation of the mesh
 	if (strstr(plug.name().asChar(), "doubleSided") != NULL && MNodeMessage::AttributeMessage::kAttributeSet)
@@ -439,7 +431,6 @@ void MeshChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& other
 	// Vertex added to mesh
 	else if (strstr(otherPlug.name().asChar(), "polyExtrude") && strstr(otherPlug.name().asChar(), "manipMatrix"))
 	{
-		//MGlobal::displayInfo("PLUGNAME: " + otherPlug.name());
 		AddedVertex(plug);
 	}
 }
@@ -806,7 +797,6 @@ void MaterialChanged(MFnMesh& mesh)
 		// Find the material and then color
 		if (connections[0].node().hasFn(MFn::kLambert))
 		{
-			//MFnLambertShader lambertShader(connections[0].node());
 			lambertShader.setObject(connections[0].node());
 			MGlobal::displayInfo(lambertShader.name());
 			color = lambertShader.color();
@@ -815,7 +805,6 @@ void MaterialChanged(MFnMesh& mesh)
 		}
 		else if (connections[0].node().hasFn(MFn::kBlinn))
 		{
-			//MFnBlinnShader blinnShader(connections[0].node());
 			blinnShader.setObject(connections[0].node());
 			MGlobal::displayInfo(blinnShader.name());
 			color = blinnShader.color();
@@ -824,7 +813,6 @@ void MaterialChanged(MFnMesh& mesh)
 		}
 		else if (connections[0].node().hasFn(MFn::kPhong))
 		{
-			//MFnPhongShader phongShader(connections[0].node());
 			phongShader.setObject(connections[0].node());
 			MGlobal::displayInfo(phongShader.name());
 			color = phongShader.color();
@@ -832,14 +820,14 @@ void MaterialChanged(MFnMesh& mesh)
 			meshMatNames[localMesh] = phongShader.name();
 		}
 
+		//Texture:
 		MObjectArray Files;
 		MString filename;
 		int pathSize;
 		int texExist = 0;
-
-		//Texture:
 		MPlugArray textureConnect;
 		MPlug texturePlug;
+
 		if (whatMaterial == 1)
 		{
 			texturePlug = lambertShader.findPlug("color");
@@ -908,7 +896,7 @@ void MaterialChanged(MFnMesh& mesh)
 				memcpy((char*)sm.buffer + localHead, &color, sizeof(MColor));
 				localHead += sizeof(MColor);
 
-				//Texture do not exist
+				//Bool for Texture
 				XMINT4 ha = XMINT4(texExist, 0, 0, 0);
 				memcpy((char*)sm.buffer + localHead, &ha.x, sizeof(int));
 				localHead += sizeof(int);
@@ -936,17 +924,11 @@ void MaterialChanged(MFnMesh& mesh)
 void ShaderChangedCB(MObject& object, void* clientData)
 {
 	MFnDependencyNode Shadername(object);
-	if (matNames[matNames.length() - 1] != Shadername.name())
-	{
-		matNames.append(Shadername.name());
-		MGlobal::displayInfo("Shader name: " + matNames[matNames.length() - 1]);
-	}
 	callbackIds.append(MNodeMessage::addAttributeChangedCallback(object, shaderchanged));
 }
 
 void shaderchanged(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& otherPlug, void* clientData)
 {
-	// WE GET FILE BUT WHEN WE ADD A IMAGE NAME IT WON'T REGISTER
 	if ((msg & MNodeMessage::kAttributeSet) || msg & MNodeMessage::kConnectionMade)
 	{
 		//meshNames.append(mesh.name());
@@ -956,19 +938,9 @@ void shaderchanged(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& other
 		MColor color;
 		int whatMaterial = 0;
 
-		//int localMesh = meshNames.length();
-		//for (int i = 0; i < meshNames.length(); i++)
-		//{
-		//	if (mesh.name() == meshNames[i])
-		//	{
-		//		localMesh = i;
-		//	}
-		//}
-
 		// Find the material and then color
 		if (plug.node().hasFn(MFn::kLambert))
 		{
-			//MFnLambertShader lambertShader(connections[0].node());
 			lambertShader.setObject(plug.node());
 			MGlobal::displayInfo(lambertShader.name());
 			color = lambertShader.color();
@@ -976,7 +948,6 @@ void shaderchanged(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& other
 		}
 		else if (plug.node().hasFn(MFn::kBlinn))
 		{
-			//MFnBlinnShader blinnShader(connections[0].node());
 			blinnShader.setObject(plug.node());
 			MGlobal::displayInfo(blinnShader.name());
 			color = blinnShader.color();
@@ -984,22 +955,21 @@ void shaderchanged(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& other
 		}
 		else if (plug.node().hasFn(MFn::kPhong))
 		{
-			//MFnPhongShader phongShader(connections[0].node());
 			phongShader.setObject(plug.node());
 			MGlobal::displayInfo(phongShader.name());
 			color = phongShader.color();
 			whatMaterial = 3;
 		}
 
+		//Texture:
 		MFnDependencyNode matNamer(plug.node());
 		MObjectArray Files;
 		MString filename;
 		int pathSize;
 		int texExist = 0;
-
-		//Texture:
 		MPlugArray textureConnect;
 		MPlug texturePlug;
+
 		if (whatMaterial == 1)
 		{
 			texturePlug = lambertShader.findPlug("color");
@@ -1071,7 +1041,7 @@ void shaderchanged(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& other
 						memcpy((char*)sm.buffer + localHead, &color, sizeof(MColor));
 						localHead += sizeof(MColor);
 
-						//Texture do not exist
+						//Bool for Texture
 						XMINT4 ha = XMINT4(texExist, 0, 0, 0);
 						memcpy((char*)sm.buffer + localHead, &ha.x, sizeof(int));
 						localHead += sizeof(int);
@@ -1117,13 +1087,11 @@ void TransformChangedCB(MNodeMessage::AttributeMessage msg, MPlug& plug, MPlug& 
 	{
 		MFnTransform transform(plug.node());
 
+		// Checks for Camera else normal transforms
 		if (transform.isParentOf(camera.object()))
 			CameraChanged(transform, camera);
 		else
 		{
-
-			MStatus res;
-
 			unsigned int localMesh = INT_MAX;
 
 			for (size_t i = 0; i < meshNames.length(); i++)
@@ -1239,8 +1207,6 @@ void GetCameraInformation()
 	} while (sm.cb->freeMem >!slotSize);
 }
 
-void CameraCreationCB(MObject& object, void* clientData) {}
-
 void CameraChanged(MFnTransform& transform, MFnCamera& camera)
 {
 	// Projection matrix
@@ -1301,8 +1267,6 @@ void GetLightInformation(MFnLight& light)
 	MColor color;
 	MVector position;
 
-	float r, b, g, a;
-
 	MStatus status;
 	if (dad.hasFn(MFn::kTransform))
 	{
@@ -1310,12 +1274,8 @@ void GetLightInformation(MFnLight& light)
 		position = lightPoint.getTranslation(MSpace::kObject, &status);
 	}
 	color = light.color();
-	r = color.r;
-	b = color.b;
-	g = color.g;
-	a = color.a;
 
-	MGlobal::displayInfo(MString() + "Color: " + r + " " + b + " " + g + " " + a);
+	MGlobal::displayInfo(MString() + "Color: " + color.r + " " + color.g + " " + color.b + " " + color.a);
 	MGlobal::displayInfo(MString() + "Position: " + position.x + " " + position.y + " " + position.z);
 	XMFLOAT3 positionF(position.x, position.y, position.z);
 
@@ -1489,6 +1449,8 @@ void NodeDestroyedCB(MObject& object, MDGModifier& modifier, void* clientData)
 			// Move header
 			sm.cb->freeMem -= slotSize;
 			sm.cb->head += slotSize;
+
+			break;
 		}
 	} while (sm.cb->freeMem >! slotSize);
 }

@@ -211,6 +211,7 @@ void SharedMemory::ReadMemory(unsigned int type)
 	}
 	else if (type == TMaterialUpdate)
 	{
+		// Mesh index
 		memcpy(&localMesh, (char*)buffer + localTail, sizeof(int));
 		localTail += sizeof(int);
 
